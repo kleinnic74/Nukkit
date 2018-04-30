@@ -248,6 +248,8 @@ public class Server {
         this.console = new CommandReader();
         //todo: VersionString 现在不必要
 
+	final SoftwareVersion sw = SoftwareVersion.get();
+	this.getLogger().info(TextFormat.GREEN+"Nukkit "+sw.getCommitId()+"@"+sw.getGitUrl()+" [branch:"+sw.getBranch()+"]");
 	final File configFile = new File(this.filePath, "nukkit.yml");
         if (!configFile.exists()) {
             this.getLogger().info(TextFormat.GREEN + "Welcome! Please choose a language first!");
@@ -289,11 +291,12 @@ public class Server {
 
         this.console.start();
 
-        this.logger.info("Loading " + TextFormat.GREEN + "nukkit.yml" + TextFormat.WHITE + "...");
+        this.logger.info("Loading " + TextFormat.GREEN + configFile.getAbsolutePath() + TextFormat.WHITE + "...");
         this.config = new Config(configFile.getAbsolutePath(), Config.YAML);
 
-        this.logger.info("Loading " + TextFormat.GREEN + "server properties" + TextFormat.WHITE + "...");
-        this.properties = new Config(this.filePath + "server.properties", Config.PROPERTIES, new ConfigSection() {
+	final File propertiesFile = new File(filePath, "server.properties");
+        this.logger.info("Loading " + TextFormat.GREEN + propertiesFile.getAbsolutePath() + TextFormat.WHITE + "...");
+        this.properties = new Config(propertiesFile.getAbsolutePath(), Config.PROPERTIES, new ConfigSection() {
             {
                 put("motd", "Nukkit Server For Minecraft: PE");
                 put("sub-motd", "Powered by Nukkit");
