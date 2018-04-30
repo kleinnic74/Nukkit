@@ -248,7 +248,8 @@ public class Server {
         this.console = new CommandReader();
         //todo: VersionString 现在不必要
 
-        if (!new File(this.dataPath + "nukkit.yml").exists()) {
+	final File configFile = new File(this.filePath, "nukkit.yml");
+        if (!configFile.exists()) {
             this.getLogger().info(TextFormat.GREEN + "Welcome! Please choose a language first!");
             try {
                 InputStream languageList = this.getClass().getClassLoader().getResourceAsStream("lang/language.list");
@@ -279,7 +280,7 @@ public class Server {
             }
 
             try {
-                Utils.writeFile(this.dataPath + "nukkit.yml", advacedConf);
+                Utils.writeFile(configFile.getAbsolutePath(), advacedConf);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -289,10 +290,10 @@ public class Server {
         this.console.start();
 
         this.logger.info("Loading " + TextFormat.GREEN + "nukkit.yml" + TextFormat.WHITE + "...");
-        this.config = new Config(this.dataPath + "nukkit.yml", Config.YAML);
+        this.config = new Config(configFile.getAbsolutePath(), Config.YAML);
 
         this.logger.info("Loading " + TextFormat.GREEN + "server properties" + TextFormat.WHITE + "...");
-        this.properties = new Config(this.dataPath + "server.properties", Config.PROPERTIES, new ConfigSection() {
+        this.properties = new Config(this.filePath + "server.properties", Config.PROPERTIES, new ConfigSection() {
             {
                 put("motd", "Nukkit Server For Minecraft: PE");
                 put("sub-motd", "Powered by Nukkit");
