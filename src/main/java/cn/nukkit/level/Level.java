@@ -60,6 +60,7 @@ import co.aikar.timings.Timings;
 import co.aikar.timings.TimingsHistory;
 import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.io.File;
@@ -689,42 +690,40 @@ public class Level implements ChunkManager, Metadatable {
         this.checkTime();
 
         // Tick Weather
-        if (gameRules.getBoolean(GameRule.DO_WEATHER_CYCLE)) {
-            this.rainTime--;
-            if (this.rainTime <= 0) {
-                if (!this.setRaining(!this.raining)) {
-                    if (this.raining) {
-                        setRainTime(ThreadLocalRandom.current().nextInt(12000) + 12000);
-                    } else {
-                        setRainTime(ThreadLocalRandom.current().nextInt(168000) + 12000);
-                    }
-                }
-            }
-
-            this.thunderTime--;
-            if (this.thunderTime <= 0) {
-                if (!this.setThundering(!this.thundering)) {
-                    if (this.thundering) {
-                        setThunderTime(ThreadLocalRandom.current().nextInt(12000) + 3600);
-                    } else {
-                        setThunderTime(ThreadLocalRandom.current().nextInt(168000) + 12000);
-                    }
-                }
-            }
-
-            if (this.isThundering()) {
-                Map<Long, ? extends FullChunk> chunks = getChunks();
-                if (chunks instanceof Long2ObjectOpenHashMap) {
-                    Long2ObjectOpenHashMap<? extends FullChunk> fastChunks = (Long2ObjectOpenHashMap) chunks;
-                    ObjectIterator<? extends Long2ObjectMap.Entry<? extends FullChunk>> iter = fastChunks.long2ObjectEntrySet().fastIterator();
-                    while (iter.hasNext()) {
-                        Long2ObjectMap.Entry<? extends FullChunk> entry = iter.next();
-                        performThunder(entry.getLongKey(), entry.getValue());
-                    }
+        this.rainTime--;
+        if (this.rainTime <= 0) {
+            if (!this.setRaining(!this.raining)) {
+                if (this.raining) {
+                    setRainTime(ThreadLocalRandom.current().nextInt(12000) + 12000);
                 } else {
-                    for (Map.Entry<Long, ? extends FullChunk> entry : getChunks().entrySet()) {
-                        performThunder(entry.getKey(), entry.getValue());
-                    }
+                    setRainTime(ThreadLocalRandom.current().nextInt(168000) + 12000);
+                }
+            }
+        }
+
+        this.thunderTime--;
+        if (this.thunderTime <= 0) {
+            if (!this.setThundering(!this.thundering)) {
+                if (this.thundering) {
+                    setThunderTime(ThreadLocalRandom.current().nextInt(12000) + 3600);
+                } else {
+                    setThunderTime(ThreadLocalRandom.current().nextInt(168000) + 12000);
+                }
+            }
+        }
+
+        if (this.isThundering()) {
+            Map<Long, ? extends FullChunk> chunks = getChunks();
+            if (chunks instanceof Long2ObjectOpenHashMap) {
+                Long2ObjectOpenHashMap<? extends FullChunk> fastChunks = (Long2ObjectOpenHashMap) chunks;
+                ObjectIterator<? extends Long2ObjectMap.Entry<? extends FullChunk>> iter = fastChunks.long2ObjectEntrySet().fastIterator();
+                while (iter.hasNext()) {
+                    Long2ObjectMap.Entry<? extends FullChunk> entry = iter.next();
+                    performThunder(entry.getLongKey(), entry.getValue());
+                }
+            } else {
+                for (Map.Entry<Long, ? extends FullChunk> entry : getChunks().entrySet()) {
+                    performThunder(entry.getKey(), entry.getValue());
                 }
             }
         }
