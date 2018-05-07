@@ -99,8 +99,8 @@ public class RakNetServer extends Thread {
         UDPServerSocket socket = new UDPServerSocket(this.getLogger(), port, this.interfaz);
         try {
             new SessionManager(this, socket);
-        } catch (Exception e) {
-            Server.getInstance().getLogger().logException(e);
+        } catch (Throwable e) {
+            Server.getInstance().getLogger().emergency("Exception in RakNetServer", e);
         }
     }
 }
