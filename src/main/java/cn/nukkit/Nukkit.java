@@ -6,9 +6,12 @@ import cn.nukkit.utils.LogLevel;
 import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.ServerKiller;
 
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.google.common.util.concurrent.UncaughtExceptionHandlers;
 
 /**
  * `_   _       _    _    _ _
@@ -92,6 +95,13 @@ public class Nukkit {
         MainLogger logger = new MainLogger(DATA_PATH + "server.log", logLevel);
         System.out.printf("Using log level '%s'\n", logLevel);
 
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {			
+			@Override
+			public void uncaughtException(Thread t, Throwable e) {
+				System.err.format("Uncaught exception in Thread '%s': %s%n", t.getName(), e);
+				System.exit(1);
+			}
+		});
         try {
             if (ANSI) {
                 System.out.print((char) 0x1b + "]0;Starting Nukkit Server For Minecraft: PE" + (char) 0x07);
