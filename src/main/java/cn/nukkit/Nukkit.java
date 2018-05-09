@@ -5,6 +5,7 @@ import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.utils.LogLevel;
 import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.ServerKiller;
+import cn.nukkit.utils.concurrent.NamedExecutorService;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Arrays;
@@ -106,7 +107,8 @@ public class Nukkit {
             if (ANSI) {
                 System.out.print((char) 0x1b + "]0;Starting Nukkit Server For Minecraft: PE" + (char) 0x07);
             }
-            new Server(logger, PATH, DATA_PATH, PLUGIN_PATH);
+            NamedExecutorService executor = new NamedExecutorService();
+            new Server(logger, PATH, DATA_PATH, PLUGIN_PATH, executor);
         } catch (Exception e) {
             logger.logException(e);
         }

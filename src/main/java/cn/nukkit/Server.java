@@ -75,12 +75,16 @@ import cn.nukkit.scheduler.FileWriteTask;
 import cn.nukkit.scheduler.ServerScheduler;
 import cn.nukkit.utils.*;
 import cn.nukkit.utils.bugreport.ExceptionHandler;
+import cn.nukkit.utils.concurrent.NamedExecutorService;
 import co.aikar.timings.Timings;
 import com.google.common.base.Preconditions;
 
 import java.io.*;
 import java.nio.ByteOrder;
 import java.util.*;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * @author MagicDroidX
@@ -222,13 +226,15 @@ public class Server {
     private final Thread currentThread;
 
     private Watchdog watchdog;
+	private NamedExecutorService executor;
 
-    Server(MainLogger logger, final String filePath, String dataPath, String pluginPath) {
-        Preconditions.checkState(instance == null, "Already initialized!");
+    Server(MainLogger logger, final String filePath, String dataPath, String pluginPath, NamedExecutorService executor) {
+        Preconditions.checkState(instance == null, "Already initialized!");        
         currentThread = Thread.currentThread(); // Saves the current thread instance as a reference, used in Server#isPrimaryThread()
         instance = this;
         this.logger = logger;
-
+        this.executor = executor;
+        
         this.filePath = filePath;
         if (!new File(dataPath + "worlds/").exists()) {
             new File(dataPath + "worlds/").mkdirs();
@@ -289,7 +295,7 @@ public class Server {
 
         }
 
-        this.console.start();
+        this.executor.launch("Console", console);
 
         this.logger.info("Loading " + TextFormat.GREEN + configFile.getAbsolutePath() + TextFormat.WHITE + "...");
         this.config = new Config(configFile.getAbsolutePath(), Config.YAML);
@@ -507,7 +513,7 @@ public class Server {
         this.enablePlugins(PluginLoadOrder.POSTWORLD);
 
         this.watchdog = new Watchdog(this, 60000);
-        this.watchdog.start();
+        executor.launch("Watchdog", this.watchdog);
 
         this.start();
     }
@@ -741,9 +747,6 @@ public class Server {
     }
 
     public void shutdown() {
-        if (this.watchdog != null) {
-            this.watchdog.kill();
-        }
         if (this.isRunning) {
             ServerKiller killer = new ServerKiller(90);
             killer.start();
@@ -761,8 +764,7 @@ public class Server {
                 //todo sendUsage
             }
 
-            // clean shutdown of console thread asap
-            this.console.shutdown();
+            executor.shutdown();
 
             this.hasStopped = true;
 
@@ -792,7 +794,7 @@ public class Server {
             }
 
             this.getLogger().debug("Closing console");
-            this.console.interrupt();
+            this.console.shutdown();
 
             this.getLogger().debug("Stopping network interfaces");
             for (SourceInterface interfaz : this.network.getInterfaces()) {

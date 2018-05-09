@@ -1,11 +1,16 @@
 package cn.nukkit.utils;
 
 import cn.nukkit.Server;
+import cn.nukkit.utils.concurrent.StoppableRunnable;
+
 import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.util.HashMap;
+import java.util.Map;
 
-public class Watchdog extends Thread {
+public class Watchdog implements StoppableRunnable {
     private final Server server;
     private final long time;
     public boolean running = true;
@@ -14,18 +19,19 @@ public class Watchdog extends Thread {
     public Watchdog(Server server, long time) {
         this.server = server;
         this.time = time;
-        this.running = true;
     }
 
-    public void kill() {
+    public long shutdown() {
         running = false;
         synchronized (this) {
             this.notifyAll();
         }
+        return 500;
     }
 
     @Override
     public void run() {
+    	this.running = true;
         while (this.running && server.isRunning()) {
             long current = server.getNextTick();
             if (current != 0) {
@@ -38,13 +44,29 @@ public class Watchdog extends Thread {
                         logger.emergency(" - https://github.com/NukkitX/Nukkit/issues/new");
                         logger.emergency("---------------- Main thread ----------------");
 
-                        dumpThread(ManagementFactory.getThreadMXBean().getThreadInfo(this.server.getPrimaryThread().getId(), Integer.MAX_VALUE), logger);
+                        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+						dumpThread(threadMXBean.getThreadInfo(this.server.getPrimaryThread().getId(), Integer.MAX_VALUE), logger);
 
                         logger.emergency("---------------- All threads ----------------");
-                        ThreadInfo[] threads = ManagementFactory.getThreadMXBean().dumpAllThreads(true, true);
-                        for (int i = 0; i < threads.length; i++) {
-                            if (i != 0) logger.emergency("------------------------------");
-                            dumpThread(threads[i], logger);
+                        ThreadInfo[] threads = threadMXBean.dumpAllThreads(true, true);
+                        Map<Long, ThreadInfo> threadsById = new HashMap<>();
+                        for (ThreadInfo t : threads) {
+                        	threadsById.put(t.getThreadId(), t);
+                            dumpThread(t, logger);
+                            logger.emergency("---------------------------------------------");
+                        }
+                        long[] deadlocked = threadMXBean.findDeadlockedThreads();
+                        if (deadlocked != null) {
+                        	for(long threadId : deadlocked) {
+                        		ThreadInfo t = threadsById.get(threadId);
+                        		if (t != null) {
+                        			logger.emergency("  Thread      : "+t.getThreadName());
+                        			logger.emergency("     Lock     :"+t.getLockName());
+                        			logger.emergency("     LockOwner:"+t.getLockOwnerName());
+                        		}
+                        	}
+                        } else {
+                        	logger.emergency("No deadlocked threads found");
                         }
                         logger.emergency("---------------------------------------------");
                         responding = false;

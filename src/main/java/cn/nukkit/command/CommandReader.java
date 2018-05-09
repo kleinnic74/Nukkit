@@ -1,21 +1,21 @@
 package cn.nukkit.command;
 
-import cn.nukkit.InterruptibleThread;
+import java.io.IOException;
+
 import cn.nukkit.Server;
 import cn.nukkit.event.server.ServerCommandEvent;
 import cn.nukkit.utils.completers.CommandsCompleter;
 import cn.nukkit.utils.completers.PlayersCompleter;
+import cn.nukkit.utils.concurrent.StoppableRunnable;
 import co.aikar.timings.Timings;
 import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
-
-import java.io.IOException;
 
 /**
  * author: MagicDroidX
  * Nukkit
  */
-public class CommandReader extends Thread implements InterruptibleThread {
+public class CommandReader implements StoppableRunnable {
 
     private ConsoleReader reader;
 
@@ -43,7 +43,6 @@ public class CommandReader extends Thread implements InterruptibleThread {
         } catch (IOException e) {
             Server.getInstance().getLogger().error("Unable to start CommandReader", e);
         }
-        this.setName("Console");
     }
 
     public String readLine() {
@@ -81,7 +80,7 @@ public class CommandReader extends Thread implements InterruptibleThread {
 
                 } else if (System.currentTimeMillis() - lastLine <= 1) {
                     try {
-                        sleep(250);
+                        Thread.sleep(250);
                     } catch (InterruptedException e) {
                         Server.getInstance().getLogger().logException(e);
                     }
@@ -93,8 +92,10 @@ public class CommandReader extends Thread implements InterruptibleThread {
         }
     }
 
-    public void shutdown() {
+    public long shutdown() {
+    	reader.shutdown();
         this.running = false;
+        return 500;
     }
 
     public synchronized void stashLine() {
