@@ -1,5 +1,7 @@
 package cn.nukkit.command;
 
+import cn.nukkit.FileLayout.DataStore;
+import cn.nukkit.FileLayout;
 import cn.nukkit.Server;
 import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.command.defaults.*;
@@ -10,6 +12,7 @@ import cn.nukkit.utils.TextFormat;
 import cn.nukkit.utils.Utils;
 import com.google.common.collect.Sets;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.Map.Entry;
@@ -27,12 +30,15 @@ public class SimpleCommandMap implements CommandMap {
 
     private final Server server;
 
-    public SimpleCommandMap(Server server) {
+	private FileLayout fs;
+
+    public SimpleCommandMap(Server server, FileLayout fs) throws IOException {
         this.server = server;
+        this.fs = Objects.requireNonNull(fs);
         this.setDefaultCommands();
     }
 
-    private void setDefaultCommands() {
+    private void setDefaultCommands() throws IOException {
         this.register("nukkit", new VersionCommand("version"));
         this.register("nukkit", new PluginsCommand("plugins"));
         this.register("nukkit", new SeedCommand("seed"));
@@ -41,7 +47,7 @@ public class SimpleCommandMap implements CommandMap {
         this.register("nukkit", new TellCommand("tell"));
         this.register("nukkit", new DefaultGamemodeCommand("defaultgamemode"));
         this.register("nukkit", new BanCommand("ban"));
-        this.register("nukkit", new BanIpCommand("ban-ip"));
+        this.register("nukkit", new BanIpCommand("ban-ip", fs.data().subStore("players")));
         this.register("nukkit", new BanListCommand("banlist"));
         this.register("nukkit", new PardonCommand("pardon"));
         this.register("nukkit", new PardonIpCommand("pardon-ip"));
@@ -75,8 +81,8 @@ public class SimpleCommandMap implements CommandMap {
 //        if ((boolean) this.server.getConfig("debug.commands", false)) {
         this.register("nukkit", new StatusCommand("status"));
         this.register("nukkit", new GarbageCollectorCommand("gc"));
-        this.register("nukkit", new TimingsCommand("timings"));
-        this.register("nukkit", new DebugPasteCommand("debugpaste"));
+        this.register("nukkit", new TimingsCommand("timings", fs.data().subStore("timings")));
+        this.register("nukkit", new DebugPasteCommand("debugpaste", fs.config(), fs.data()));
         //this.register("nukkit", new DumpMemoryCommand("dumpmemory"));
 //        }
     }
@@ -273,7 +279,7 @@ public class SimpleCommandMap implements CommandMap {
     }
 
     @Override
-    public void clearCommands() {
+    public void clearCommands() throws IOException {
         for (Command command : this.knownCommands.values()) {
             command.unregister(this);
         }

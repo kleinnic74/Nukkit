@@ -1,5 +1,6 @@
 package cn.nukkit.inventory;
 
+import cn.nukkit.FileLayout.DataStore;
 import cn.nukkit.Server;
 import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemPotion;
@@ -48,19 +49,15 @@ public class CraftingManager {
     };
 
     @SuppressWarnings("unchecked")
-    public CraftingManager() {
-        String path = Server.getInstance().getDataPath() + "recipes.json";
+    public CraftingManager(DataStore dataDb) throws IOException {
+    	File recipesConfig = Objects.requireNonNull(dataDb).file("recipes.json");
 
-        if (!new File(path).exists()) {
-            try {
-                Utils.writeFile(path, Server.class.getClassLoader().getResourceAsStream("recipes.json"));
-            } catch (IOException e) {
-                MainLogger.getLogger().logException(e);
-            }
+        if (!recipesConfig.exists()) {
+            Utils.writeFile(recipesConfig, Server.class.getClassLoader().getResourceAsStream("recipes.json"));
         }
 
-        List<Map> recipes = new Config(path, Config.JSON).getMapList("recipes");
         MainLogger.getLogger().info("Loading recipes...");
+        List<Map> recipes = new Config(recipesConfig, Config.JSON).getMapList("recipes");
         for (Map<String, Object> recipe : recipes) {
             try {
                 switch (Utils.toInt(recipe.get("type"))) {

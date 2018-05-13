@@ -1,13 +1,20 @@
 package cn.nukkit;
 
 import cn.nukkit.command.CommandReader;
+import cn.nukkit.command.Console;
 import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.utils.LogLevel;
+import cn.nukkit.utils.Logger;
 import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.ServerKiller;
 import cn.nukkit.utils.concurrent.NamedExecutorService;
+import cn.nukkit.utils.logging.ConsoleLogBackend;
+import cn.nukkit.utils.logging.FileLogBackend;
 
+import java.io.File;
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,6 +57,7 @@ public class Nukkit {
     public static int DEBUG = 1;
 
     public static void main(String[] args) {
+        MainLogger logger = MainLogger.getLogger();
 
         //Shorter title for windows 8/2012
         String osName = System.getProperty("os.name").toLowerCase();
@@ -93,8 +101,6 @@ public class Nukkit {
             }
         }
 
-        MainLogger logger = new MainLogger(DATA_PATH + "server.log", logLevel);
-        System.out.printf("Using log level '%s'\n", logLevel);
 
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {			
 			@Override
@@ -104,11 +110,20 @@ public class Nukkit {
 			}
 		});
         try {
+        	NamedExecutorService executor = new NamedExecutorService();
+        	executor.launch("Logger", logger);
+        	logger.setLevel(logLevel);
+        	Console console = new Console();
+        	logger.addBackend(new ConsoleLogBackend(console));
+        	FileLayout fs = FileLayout.build(System.getProperty("user.dir"));
+        	Path logFile = fs.data().filePath("server.log");
+        	Path oldLogs = fs.data().subStore("logs").basepath();
+        	logger.addBackend(new FileLogBackend(logFile, oldLogs));
+        	System.out.printf("Using log level '%s'\n", logLevel);
             if (ANSI) {
                 System.out.print((char) 0x1b + "]0;Starting Nukkit Server For Minecraft: PE" + (char) 0x07);
             }
-            NamedExecutorService executor = new NamedExecutorService();
-            new Server(logger, PATH, DATA_PATH, PLUGIN_PATH, executor);
+            new Server(logger, console,fs, executor);
         } catch (Exception e) {
             logger.logException(e);
         }
@@ -118,21 +133,11 @@ public class Nukkit {
         }
         logger.info("Stopping other threads");
 
-        for (Thread thread : java.lang.Thread.getAllStackTraces().keySet()) {
-            if (!(thread instanceof InterruptibleThread)) {
-                continue;
-            }
-            logger.debug("Stopping " + thread.getClass().getSimpleName() + " thread");
-            if (thread.isAlive()) {
-                thread.interrupt();
-            }
-        }
 
         ServerKiller killer = new ServerKiller(8);
         killer.start();
 
         logger.shutdown();
-        CommandReader.getInstance().removePromptLine();
 
         if (ANSI) {
             System.out.print((char) 0x1b + "]0;Server Stopped" + (char) 0x07);

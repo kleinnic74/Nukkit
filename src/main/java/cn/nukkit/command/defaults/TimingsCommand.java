@@ -1,5 +1,8 @@
 package cn.nukkit.command.defaults;
 
+import java.util.Objects;
+
+import cn.nukkit.FileLayout.DataStore;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.lang.TranslationContainer;
@@ -12,13 +15,16 @@ import co.aikar.timings.TimingsExport;
  */
 public class TimingsCommand extends VanillaCommand {
 
-    public TimingsCommand(String name) {
+    private final DataStore timingsStore;
+
+	public TimingsCommand(String name, DataStore timingsStore) {
         super(name, "%nukkit.command.timings.description", "%nukkit.command.timings.usage");
         this.setPermission("nukkit.command.timings");
         this.commandParameters.clear();
         this.commandParameters.put("default", new CommandParameter[]{
                 new CommandParameter("on|off|paste")
         });
+        this.timingsStore = Objects.requireNonNull(timingsStore);
     }
 
     @Override
@@ -65,7 +71,7 @@ public class TimingsCommand extends VanillaCommand {
                 break;
             case "report":
             case "paste":
-                TimingsExport.reportTimings(sender);
+                TimingsExport.reportTimings(sender, timingsStore);
                 break;
         }
         return true;

@@ -1,5 +1,6 @@
 package cn.nukkit.command;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -18,7 +19,7 @@ public interface CommandMap {
 
     boolean dispatch(CommandSender sender, String cmdLine);
 
-    void clearCommands();
+    void clearCommands() throws IOException;
 
     Command getCommand(String name);
 
