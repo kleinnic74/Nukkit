@@ -49,7 +49,7 @@ public abstract class BaseLevelProvider implements LevelProvider {
         if (!file_path.exists()) {
             file_path.mkdirs();
         }
-        CompoundTag levelData = NBTIO.readCompressed(new FileInputStream(new File(this.getPath() + "level.dat")), ByteOrder.BIG_ENDIAN);
+        CompoundTag levelData = NBTIO.readCompressed(new FileInputStream(new File(this.getPath(), "level.dat")), ByteOrder.BIG_ENDIAN);
         if (levelData.get("Data") instanceof CompoundTag) {
             this.levelData = levelData.getCompound("Data");
         } else {

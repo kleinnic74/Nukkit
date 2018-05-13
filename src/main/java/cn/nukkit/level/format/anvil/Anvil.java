@@ -47,9 +47,9 @@ public class Anvil extends BaseLevelProvider {
     }
 
     public static boolean isValid(String path) {
-        boolean isValid = (new File(path + "/level.dat").exists()) && new File(path + "/region/").isDirectory();
+        boolean isValid = (new File(path, "level.dat").exists()) && new File(path, "region").isDirectory();
         if (isValid) {
-            for (File file : new File(path + "/region/").listFiles((dir, name) -> Pattern.matches("^.+\\.mc[r|a]$", name))) {
+            for (File file : new File(path, "region").listFiles((dir, name) -> Pattern.matches("^.+\\.mc[r|a]$", name))) {
                 if (!file.getName().endsWith(".mca")) {
                     isValid = false;
                     break;
@@ -64,8 +64,8 @@ public class Anvil extends BaseLevelProvider {
     }
 
     public static void generate(String path, String name, long seed, Class<? extends Generator> generator, Map<String, String> options) throws IOException {
-        if (!new File(path + "/region").exists()) {
-            new File(path + "/region").mkdirs();
+        if (!new File(path,  "region").exists()) {
+            new File(path, "region").mkdirs();
         }
 
         CompoundTag levelData = new CompoundTag("Data")
