@@ -92,7 +92,7 @@ public class Anvil extends BaseLevelProvider {
                 .putLong("Time", 0)
                 .putLong("SizeOnDisk", 0);
 
-        NBTIO.writeGZIPCompressed(new CompoundTag().putCompound("Data", levelData), new FileOutputStream(path + "level.dat"), ByteOrder.BIG_ENDIAN);
+        NBTIO.writeGZIPCompressed(new CompoundTag().putCompound("Data", levelData), new FileOutputStream(new File(path, "level.dat")), ByteOrder.BIG_ENDIAN);
     }
 
     public Chunk getEmptyChunk(int chunkX, int chunkZ) {
