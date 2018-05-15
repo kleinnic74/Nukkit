@@ -211,7 +211,7 @@ public class Server {
 
 	private PluginManager pluginManager = null;
 
-	private int profilingTickrate = 20;
+	private final int profilingTickrate = 20;
 
 	private ServerScheduler scheduler = null;
 
@@ -230,7 +230,7 @@ public class Server {
 
 	private int sendUsageTicker = 0;
 
-	private boolean dispatchSignals = false;
+	private final boolean dispatchSignals = false;
 
 	private final MainLogger logger;
 
@@ -295,20 +295,23 @@ public class Server {
 	private final Map<Integer, String> identifier = new HashMap<>();
 
 	private final Map<Integer, Level> levels = new HashMap<Integer, Level>() {
-		public Level put(Integer key, Level value) {
-			Level result = super.put(key, value);
+		@Override
+		public Level put(final Integer key, final Level value) {
+			final Level result = super.put(key, value);
 			levelArray = levels.values().toArray(new Level[levels.size()]);
 			return result;
 		}
 
-		public boolean remove(Object key, Object value) {
-			boolean result = super.remove(key, value);
+		@Override
+		public boolean remove(final Object key, final Object value) {
+			final boolean result = super.remove(key, value);
 			levelArray = levels.values().toArray(new Level[levels.size()]);
 			return result;
 		}
 
-		public Level remove(Object key) {
-			Level result = super.remove(key);
+		@Override
+		public Level remove(final Object key) {
+			final Level result = super.remove(key);
 			levelArray = levels.values().toArray(new Level[levels.size()]);
 			return result;
 		}
@@ -327,7 +330,7 @@ public class Server {
 	private DataStore worldsDb;
 	private DataStore playersDb;
 
-	Server(MainLogger logger, Console console, final FileLayout fs, NamedExecutorService executor) throws IOException {
+	Server(final MainLogger logger, final Console console, final FileLayout fs, final NamedExecutorService executor) throws IOException {
 		Preconditions.checkState(instance == null, "Already initialized!");
 		currentThread = Thread.currentThread(); // Saves the current thread instance as a reference, used in
 												// Server#isPrimaryThread()
@@ -350,24 +353,24 @@ public class Server {
 		if (!configFile.exists()) {
 			this.getLogger().info(TextFormat.GREEN + "Welcome! Please choose a language first!");
 			try {
-				InputStream languageList = this.getClass().getClassLoader().getResourceAsStream("lang/language.list");
+				final InputStream languageList = this.getClass().getClassLoader().getResourceAsStream("lang/language.list");
 				if (languageList == null) {
 					throw new RuntimeException(
 							"lang/language.list is missing. If you are running a development version, make sure you have run 'git submodule update --init'.");
 				}
-				String[] lines = Utils.readFile(languageList).split("\n");
-				for (String line : lines) {
+				final String[] lines = Utils.readFile(languageList).split("\n");
+				for (final String line : lines) {
 					this.getLogger().info(line);
 				}
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new RuntimeException(e);
 			}
 
-			String fallback = BaseLang.FALLBACK_LANGUAGE;
+			final String fallback = BaseLang.FALLBACK_LANGUAGE;
 			String language = null;
 			while (language == null) {
-				String lang = console.readLine();
-				InputStream conf = this.getClass().getClassLoader().getResourceAsStream("lang/" + lang + "/lang.ini");
+				final String lang = console.readLine();
+				final InputStream conf = this.getClass().getClassLoader().getResourceAsStream("lang/" + lang + "/lang.ini");
 				if (conf != null) {
 					language = lang;
 				}
@@ -381,7 +384,7 @@ public class Server {
 
 			try {
 				Utils.writeFile(configFile.getAbsolutePath(), advacedConf);
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				throw new RuntimeException(e);
 			}
 
@@ -440,7 +443,7 @@ public class Server {
 		if (!(poolSize instanceof Integer)) {
 			try {
 				poolSize = Integer.valueOf((String) poolSize);
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				poolSize = Math.max(Runtime.getRuntime().availableProcessors() + 1, 4);
 			}
 		}
@@ -466,7 +469,7 @@ public class Server {
 						(!this.getIp().equals("")) ? this.getIp() : "0.0.0.0",
 						this.getPropertyInt("rcon.port", this.getPort()), this.getPropertyString("rcon.password", ""));
 				executor.launch("RCON", rconServer);
-			} catch (IOException exception) {
+			} catch (final IOException exception) {
 				getLogger().critical(
 						getLanguage().translateString("nukkit.server.rcon.startupError", exception.getMessage()));
 				return;
@@ -538,8 +541,10 @@ public class Server {
 
 		this.queryRegenerateEvent = new QueryRegenerateEvent(this, 5);
 
-		this.network.registerInterface(new RakNetInterface(this));
-
+		final RakNetInterface raknet = new RakNetInterface(this);
+		this.network.registerInterface(raknet);
+		executor.launch("RakNet", raknet);
+		
 		this.pluginManager.loadPlugins(fs.plugins().basedir());
 
 		this.enablePlugins(PluginLoadOrder.STARTUP);
@@ -554,19 +559,19 @@ public class Server {
 		Generator.addGenerator(Nether.class, "nether", Generator.TYPE_NETHER);
 		// todo: add old generator and hell generator
 
-		for (String name : ((Map<String, Object>) this.getConfig("worlds", new HashMap<>())).keySet()) {
+		for (final String name : ((Map<String, Object>) this.getConfig("worlds", new HashMap<>())).keySet()) {
 			if (!this.loadLevel(name)) {
 				long seed;
 				try {
 					seed = ((Integer) this.getConfig("worlds." + name + ".seed")).longValue();
-				} catch (Exception e) {
+				} catch (final Exception e) {
 					seed = System.currentTimeMillis();
 				}
 
-				Map<String, Object> options = new HashMap<>();
-				String[] opts = ((String) this.getConfig("worlds." + name + ".generator",
+				final Map<String, Object> options = new HashMap<>();
+				final String[] opts = ((String) this.getConfig("worlds." + name + ".generator",
 						Generator.getGenerator("default").getSimpleName())).split(":");
-				Class<? extends Generator> generator = Generator.getGenerator(opts[0]);
+				final Class<? extends Generator> generator = Generator.getGenerator(opts[0]);
 				if (opts.length > 1) {
 					String preset = "";
 					for (int i = 1; i < opts.length; i++) {
@@ -591,10 +596,10 @@ public class Server {
 
 			if (!this.loadLevel(defaultName)) {
 				long seed;
-				String seedString = String.valueOf(this.getProperty("level-seed", System.currentTimeMillis()));
+				final String seedString = String.valueOf(this.getProperty("level-seed", System.currentTimeMillis()));
 				try {
 					seed = Long.valueOf(seedString);
-				} catch (NumberFormatException e) {
+				} catch (final NumberFormatException e) {
 					seed = seedString.hashCode();
 				}
 				this.generateLevel(defaultName, seed == 0 ? System.currentTimeMillis() : seed);
@@ -625,84 +630,84 @@ public class Server {
 		this.start();
 	}
 
-	public int broadcastMessage(String message) {
+	public int broadcastMessage(final String message) {
 		return this.broadcast(message, BROADCAST_CHANNEL_USERS);
 	}
 
-	public int broadcastMessage(TextContainer message) {
+	public int broadcastMessage(final TextContainer message) {
 		return this.broadcast(message, BROADCAST_CHANNEL_USERS);
 	}
 
-	public int broadcastMessage(String message, CommandSender[] recipients) {
-		for (CommandSender recipient : recipients) {
+	public int broadcastMessage(final String message, final CommandSender[] recipients) {
+		for (final CommandSender recipient : recipients) {
 			recipient.sendMessage(message);
 		}
 
 		return recipients.length;
 	}
 
-	public int broadcastMessage(String message, Collection<CommandSender> recipients) {
-		for (CommandSender recipient : recipients) {
+	public int broadcastMessage(final String message, final Collection<CommandSender> recipients) {
+		for (final CommandSender recipient : recipients) {
 			recipient.sendMessage(message);
 		}
 
 		return recipients.size();
 	}
 
-	public int broadcastMessage(TextContainer message, Collection<CommandSender> recipients) {
-		for (CommandSender recipient : recipients) {
+	public int broadcastMessage(final TextContainer message, final Collection<CommandSender> recipients) {
+		for (final CommandSender recipient : recipients) {
 			recipient.sendMessage(message);
 		}
 
 		return recipients.size();
 	}
 
-	public int broadcast(String message, String permissions) {
-		Set<CommandSender> recipients = new HashSet<>();
+	public int broadcast(final String message, final String permissions) {
+		final Set<CommandSender> recipients = new HashSet<>();
 
-		for (String permission : permissions.split(";")) {
-			for (Permissible permissible : this.pluginManager.getPermissionSubscriptions(permission)) {
+		for (final String permission : permissions.split(";")) {
+			for (final Permissible permissible : this.pluginManager.getPermissionSubscriptions(permission)) {
 				if (permissible instanceof CommandSender && permissible.hasPermission(permission)) {
 					recipients.add((CommandSender) permissible);
 				}
 			}
 		}
 
-		for (CommandSender recipient : recipients) {
+		for (final CommandSender recipient : recipients) {
 			recipient.sendMessage(message);
 		}
 
 		return recipients.size();
 	}
 
-	public int broadcast(TextContainer message, String permissions) {
-		Set<CommandSender> recipients = new HashSet<>();
+	public int broadcast(final TextContainer message, final String permissions) {
+		final Set<CommandSender> recipients = new HashSet<>();
 
-		for (String permission : permissions.split(";")) {
-			for (Permissible permissible : this.pluginManager.getPermissionSubscriptions(permission)) {
+		for (final String permission : permissions.split(";")) {
+			for (final Permissible permissible : this.pluginManager.getPermissionSubscriptions(permission)) {
 				if (permissible instanceof CommandSender && permissible.hasPermission(permission)) {
 					recipients.add((CommandSender) permissible);
 				}
 			}
 		}
 
-		for (CommandSender recipient : recipients) {
+		for (final CommandSender recipient : recipients) {
 			recipient.sendMessage(message);
 		}
 
 		return recipients.size();
 	}
 
-	public static void broadcastPacket(Collection<Player> players, DataPacket packet) {
+	public static void broadcastPacket(final Collection<Player> players, final DataPacket packet) {
 		broadcastPacket(players.stream().toArray(Player[]::new), packet);
 	}
 
-	public static void broadcastPacket(Player[] players, DataPacket packet) {
+	public static void broadcastPacket(final Player[] players, final DataPacket packet) {
 		packet.encode();
 		packet.isEncoded = true;
 
 		if (packet.pid() == ProtocolInfo.BATCH_PACKET) {
-			for (Player player : players) {
+			for (final Player player : players) {
 				player.dataPacket(packet);
 			}
 		} else {
@@ -714,24 +719,24 @@ public class Server {
 		}
 	}
 
-	public void batchPackets(Player[] players, DataPacket[] packets) {
+	public void batchPackets(final Player[] players, final DataPacket[] packets) {
 		this.batchPackets(players, packets, false);
 	}
 
-	public void batchPackets(Player[] players, DataPacket[] packets, boolean forceSync) {
+	public void batchPackets(final Player[] players, final DataPacket[] packets, final boolean forceSync) {
 		if (players == null || packets == null || players.length == 0 || packets.length == 0) {
 			return;
 		}
 
 		Timings.playerNetworkSendTimer.startTiming();
-		byte[][] payload = new byte[packets.length * 2][];
+		final byte[][] payload = new byte[packets.length * 2][];
 		int size = 0;
 		for (int i = 0; i < packets.length; i++) {
-			DataPacket p = packets[i];
+			final DataPacket p = packets[i];
 			if (!p.isEncoded) {
 				p.encode();
 			}
-			byte[] buf = p.getBuffer();
+			final byte[] buf = p.getBuffer();
 			payload[i * 2] = Binary.writeUnsignedVarInt(buf.length);
 			payload[i * 2 + 1] = buf;
 			packets[i] = null;
@@ -739,8 +744,8 @@ public class Server {
 			size += payload[i * 2 + 1].length;
 		}
 
-		List<String> targets = new ArrayList<>();
-		for (Player p : players) {
+		final List<String> targets = new ArrayList<>();
+		for (final Player p : players) {
 			if (p.isConnected()) {
 				targets.add(this.identifier.get(p.rawHashCode()));
 			}
@@ -751,28 +756,28 @@ public class Server {
 					.scheduleAsyncTask(new CompressBatchedTask(payload, targets, this.networkCompressionLevel));
 		} else {
 			try {
-				byte[] data = Binary.appendBytes(payload);
+				final byte[] data = Binary.appendBytes(payload);
 				this.broadcastPacketsCallback(Zlib.deflate(data, this.networkCompressionLevel), targets);
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				throw new RuntimeException(e);
 			}
 		}
 		Timings.playerNetworkSendTimer.stopTiming();
 	}
 
-	public void broadcastPacketsCallback(byte[] data, List<String> identifiers) {
-		BatchPacket pk = new BatchPacket();
+	public void broadcastPacketsCallback(final byte[] data, final List<String> identifiers) {
+		final BatchPacket pk = new BatchPacket();
 		pk.payload = data;
 
-		for (String i : identifiers) {
+		for (final String i : identifiers) {
 			if (this.players.containsKey(i)) {
 				this.players.get(i).dataPacket(pk);
 			}
 		}
 	}
 
-	public void enablePlugins(PluginLoadOrder type) {
-		for (Plugin plugin : new ArrayList<>(this.pluginManager.getPlugins().values())) {
+	public void enablePlugins(final PluginLoadOrder type) {
+		for (final Plugin plugin : new ArrayList<>(this.pluginManager.getPlugins().values())) {
 			if (!plugin.isEnabled() && type == plugin.getDescription().getOrder()) {
 				this.enablePlugin(plugin);
 			}
@@ -784,7 +789,7 @@ public class Server {
 		}
 	}
 
-	public void enablePlugin(Plugin plugin) {
+	public void enablePlugin(final Plugin plugin) {
 		this.pluginManager.enablePlugin(plugin);
 	}
 
@@ -792,7 +797,7 @@ public class Server {
 		this.pluginManager.disablePlugins();
 	}
 
-	public boolean dispatchCommand(CommandSender sender, String commandLine) throws ServerException {
+	public boolean dispatchCommand(final CommandSender sender, final String commandLine) throws ServerException {
 		// First we need to check if this command is on the main thread or not, if not,
 		// warn the user
 		if (!this.isPrimaryThread()) {
@@ -825,7 +830,7 @@ public class Server {
 		try {
 			this.logger.info("Saving levels...");
 
-			for (Level level : this.levelArray) {
+			for (final Level level : this.levelArray) {
 				level.save();
 			}
 
@@ -846,7 +851,7 @@ public class Server {
 			this.reloadWhitelist();
 			this.operators.reload();
 
-			for (BanEntry entry : this.getIPBans().getEntires().values()) {
+			for (final BanEntry entry : this.getIPBans().getEntires().values()) {
 				this.getNetwork().blockAddress(entry.getName(), -1);
 			}
 
@@ -855,14 +860,14 @@ public class Server {
 			this.enablePlugins(PluginLoadOrder.STARTUP);
 			this.enablePlugins(PluginLoadOrder.POSTWORLD);
 			Timings.reset();
-		} catch(IOException e) {
+		} catch(final IOException e) {
 			MainLogger.getLogger().logException(e);
 		}
 	}
 
 	public void shutdown() {
 		if (this.isRunning) {
-			ServerKiller killer = new ServerKiller(90);
+			final ServerKiller killer = new ServerKiller(90);
 			killer.start();
 		}
 		this.isRunning = false;
@@ -887,7 +892,7 @@ public class Server {
 			this.getLogger().debug("Disabling all plugins");
 			this.pluginManager.disablePlugins();
 
-			for (Player player : new ArrayList<>(this.players.values())) {
+			for (final Player player : new ArrayList<>(this.players.values())) {
 				player.close(player.getLeaveMessage(),
 						(String) this.getConfig("settings.shutdown-message", "Server closed"));
 			}
@@ -900,7 +905,7 @@ public class Server {
 			this.scheduler.mainThreadHeartbeat(Integer.MAX_VALUE);
 
 			this.getLogger().debug("Unloading all levels");
-			for (Level level : this.levelArray) {
+			for (final Level level : this.levelArray) {
 				this.unloadLevel(level, true);
 			}
 
@@ -908,15 +913,14 @@ public class Server {
 			this.consoleCommandReader.shutdown();
 
 			this.getLogger().debug("Stopping network interfaces");
-			for (SourceInterface interfaz : this.network.getInterfaces()) {
-				interfaz.shutdown();
+			for (final SourceInterface interfaz : this.network.getInterfaces()) {
 				this.network.unregisterInterface(interfaz);
 			}
 
 			this.getLogger().debug("Disabling timings");
 			Timings.stopServer();
 			// todo other things
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			this.logger.logException(e); // todo remove this?
 			this.logger.emergency("Exception happened while shutting down, exit the process");
 			System.exit(1);
@@ -928,7 +932,7 @@ public class Server {
 			this.queryHandler = new QueryHandler();
 		}
 
-		for (BanEntry entry : this.getIPBans().getEntires().values()) {
+		for (final BanEntry entry : this.getIPBans().getEntires().values()) {
 			this.network.blockAddress(entry.getName(), -1);
 		}
 
@@ -945,14 +949,14 @@ public class Server {
 		this.forceShutdown();
 	}
 
-	public void handlePacket(String address, int port, byte[] payload) {
+	public void handlePacket(final String address, final int port, final byte[] payload) {
 		try {
 			if (payload.length > 2
 					&& Arrays.equals(Binary.subBytes(payload, 0, 2), new byte[] { (byte) 0xfe, (byte) 0xfd })
 					&& this.queryHandler != null) {
 				this.queryHandler.handle(address, port, payload);
 			}
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			this.logger.logException(e);
 
 			this.getNetwork().blockAddress(address, 600);
@@ -968,8 +972,8 @@ public class Server {
 				try {
 					this.tick();
 
-					long next = this.nextTick;
-					long current = System.currentTimeMillis();
+					final long next = this.nextTick;
+					final long current = System.currentTimeMillis();
 
 					if (next - 0.1 > current) {
 						long allocated = next - current - 1;
@@ -978,7 +982,7 @@ public class Server {
 							int offset = 0;
 							for (int i = 0; i < levelArray.length; i++) {
 								offset = (i + lastLevelGC) % levelArray.length;
-								Level level = levelArray[offset];
+								final Level level = levelArray[offset];
 								level.doGarbageCollection(allocated - 1);
 								allocated = next - System.currentTimeMillis();
 								if (allocated <= 0) {
@@ -992,43 +996,43 @@ public class Server {
 							Thread.sleep(allocated, 900000);
 						}
 					}
-				} catch (RuntimeException e) {
+				} catch (final RuntimeException e) {
 					this.getLogger().logException(e);
 				}
 			}
-		} catch (Throwable e) {
+		} catch (final Throwable e) {
 			this.logger.emergency("Exception happened while ticking server");
 			this.logger.alert(Utils.getExceptionMessage(e));
 			this.logger.alert(Utils.getAllThreadDumps());
 		}
 	}
 
-	public void onPlayerCompleteLoginSequence(Player player) {
+	public void onPlayerCompleteLoginSequence(final Player player) {
 		this.sendFullPlayerListData(player);
 	}
 
-	public void onPlayerLogin(Player player) {
+	public void onPlayerLogin(final Player player) {
 		if (this.sendUsageTicker > 0) {
 			this.uniquePlayers.add(player.getUniqueId());
 		}
 	}
 
-	public void addPlayer(String identifier, Player player) {
+	public void addPlayer(final String identifier, final Player player) {
 		this.players.put(identifier, player);
 		this.identifier.put(player.rawHashCode(), identifier);
 	}
 
-	public void addOnlinePlayer(Player player) {
+	public void addOnlinePlayer(final Player player) {
 		this.playerList.put(player.getUniqueId(), player);
 		this.updatePlayerListData(player.getUniqueId(), player.getId(), player.getDisplayName(), player.getSkin(),
 				player.getLoginChainData().getXUID());
 	}
 
-	public void removeOnlinePlayer(Player player) {
+	public void removeOnlinePlayer(final Player player) {
 		if (this.playerList.containsKey(player.getUniqueId())) {
 			this.playerList.remove(player.getUniqueId());
 
-			PlayerListPacket pk = new PlayerListPacket();
+			final PlayerListPacket pk = new PlayerListPacket();
 			pk.type = PlayerListPacket.TYPE_REMOVE;
 			pk.entries = new PlayerListPacket.Entry[] { new PlayerListPacket.Entry(player.getUniqueId()) };
 
@@ -1036,50 +1040,50 @@ public class Server {
 		}
 	}
 
-	public void updatePlayerListData(UUID uuid, long entityId, String name, Skin skin) {
+	public void updatePlayerListData(final UUID uuid, final long entityId, final String name, final Skin skin) {
 		this.updatePlayerListData(uuid, entityId, name, skin, "", this.playerList.values());
 	}
 
-	public void updatePlayerListData(UUID uuid, long entityId, String name, Skin skin, String xboxUserId) {
+	public void updatePlayerListData(final UUID uuid, final long entityId, final String name, final Skin skin, final String xboxUserId) {
 		this.updatePlayerListData(uuid, entityId, name, skin, xboxUserId, this.playerList.values());
 	}
 
-	public void updatePlayerListData(UUID uuid, long entityId, String name, Skin skin, Player[] players) {
+	public void updatePlayerListData(final UUID uuid, final long entityId, final String name, final Skin skin, final Player[] players) {
 		this.updatePlayerListData(uuid, entityId, name, skin, "", players);
 	}
 
-	public void updatePlayerListData(UUID uuid, long entityId, String name, Skin skin, String xboxUserId,
-			Player[] players) {
-		PlayerListPacket pk = new PlayerListPacket();
+	public void updatePlayerListData(final UUID uuid, final long entityId, final String name, final Skin skin, final String xboxUserId,
+			final Player[] players) {
+		final PlayerListPacket pk = new PlayerListPacket();
 		pk.type = PlayerListPacket.TYPE_ADD;
 		pk.entries = new PlayerListPacket.Entry[] {
 				new PlayerListPacket.Entry(uuid, entityId, name, skin, xboxUserId) };
 		Server.broadcastPacket(players, pk);
 	}
 
-	public void updatePlayerListData(UUID uuid, long entityId, String name, Skin skin, String xboxUserId,
-			Collection<Player> players) {
+	public void updatePlayerListData(final UUID uuid, final long entityId, final String name, final Skin skin, final String xboxUserId,
+			final Collection<Player> players) {
 		this.updatePlayerListData(uuid, entityId, name, skin, xboxUserId,
 				players.stream().filter(p -> !p.getUniqueId().equals(uuid)).toArray(Player[]::new));
 	}
 
-	public void removePlayerListData(UUID uuid) {
+	public void removePlayerListData(final UUID uuid) {
 		this.removePlayerListData(uuid, this.playerList.values());
 	}
 
-	public void removePlayerListData(UUID uuid, Player[] players) {
-		PlayerListPacket pk = new PlayerListPacket();
+	public void removePlayerListData(final UUID uuid, final Player[] players) {
+		final PlayerListPacket pk = new PlayerListPacket();
 		pk.type = PlayerListPacket.TYPE_REMOVE;
 		pk.entries = new PlayerListPacket.Entry[] { new PlayerListPacket.Entry(uuid) };
 		Server.broadcastPacket(players, pk);
 	}
 
-	public void removePlayerListData(UUID uuid, Collection<Player> players) {
+	public void removePlayerListData(final UUID uuid, final Collection<Player> players) {
 		this.removePlayerListData(uuid, players.stream().toArray(Player[]::new));
 	}
 
-	public void sendFullPlayerListData(Player player) {
-		PlayerListPacket pk = new PlayerListPacket();
+	public void sendFullPlayerListData(final Player player) {
+		final PlayerListPacket pk = new PlayerListPacket();
 		pk.type = PlayerListPacket.TYPE_ADD;
 		pk.entries = this.playerList.values().stream().map(p -> new PlayerListPacket.Entry(p.getUniqueId(), p.getId(),
 				p.getDisplayName(), p.getSkin(), p.getLoginChainData().getXUID()))
@@ -1088,12 +1092,12 @@ public class Server {
 		player.dataPacket(pk);
 	}
 
-	public void sendRecipeList(Player player) {
+	public void sendRecipeList(final Player player) {
 		player.dataPacket(CraftingManager.packet);
 	}
 
-	private void checkTickUpdates(int currentTick, long tickTime) {
-		for (Player p : new ArrayList<>(this.players.values())) {
+	private void checkTickUpdates(final int currentTick, final long tickTime) {
+		for (final Player p : new ArrayList<>(this.players.values())) {
 			/*
 			 * if (!p.loggedIn && (tickTime - p.creationTime) >= 10000 &&
 			 * p.kick(PlayerKickEvent.Reason.LOGIN_TIMEOUT, "Login timeout")) { continue; }
@@ -1107,15 +1111,15 @@ public class Server {
 		}
 
 		// Do level ticks
-		for (Level level : this.levelArray) {
+		for (final Level level : this.levelArray) {
 			if (level.getTickRate() > this.baseTickRate && --level.tickRateCounter > 0) {
 				continue;
 			}
 
 			try {
-				long levelTime = System.currentTimeMillis();
+				final long levelTime = System.currentTimeMillis();
 				level.doTick(currentTick);
-				int tickMs = (int) (System.currentTimeMillis() - levelTime);
+				final int tickMs = (int) (System.currentTimeMillis() - levelTime);
 				level.tickRateTime = tickMs;
 
 				if (this.autoTickRate) {
@@ -1144,7 +1148,7 @@ public class Server {
 						level.tickRateCounter = level.getTickRate();
 					}
 				}
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				if (Nukkit.DEBUG > 1 && this.logger != null) {
 					this.logger.logException(e);
 				}
@@ -1159,7 +1163,7 @@ public class Server {
 	public void doAutoSave() {
 		if (this.getAutoSave()) {
 			Timings.levelSaveTimer.startTiming();
-			for (Player player : new ArrayList<>(this.players.values())) {
+			for (final Player player : new ArrayList<>(this.players.values())) {
 				if (player.isOnline()) {
 					player.save(true);
 				} else if (!player.isConnected()) {
@@ -1167,7 +1171,7 @@ public class Server {
 				}
 			}
 
-			for (Level level : this.levelArray) {
+			for (final Level level : this.levelArray) {
 				level.save();
 			}
 			Timings.levelSaveTimer.stopTiming();
@@ -1175,19 +1179,19 @@ public class Server {
 	}
 
 	private boolean tick() {
-		long tickTime = System.currentTimeMillis();
+		final long tickTime = System.currentTimeMillis();
 
 		// TODO
-		long sleepTime = tickTime - this.nextTick;
+		final long sleepTime = tickTime - this.nextTick;
 		if (sleepTime < -25) {
 			try {
 				Thread.sleep(Math.max(5, -sleepTime - 25));
-			} catch (InterruptedException e) {
+			} catch (final InterruptedException e) {
 				Server.getInstance().getLogger().logException(e);
 			}
 		}
 
-		long tickTimeNano = System.nanoTime();
+		final long tickTimeNano = System.nanoTime();
 		if ((tickTime - this.nextTick) < -25) {
 			return false;
 		}
@@ -1210,7 +1214,7 @@ public class Server {
 
 		this.checkTickUpdates(this.tickCounter, tickTime);
 
-		for (Player player : new ArrayList<>(this.players.values())) {
+		for (final Player player : new ArrayList<>(this.players.values())) {
 			player.checkNetwork();
 		}
 
@@ -1226,7 +1230,7 @@ public class Server {
 					if (this.queryHandler != null) {
 						this.queryHandler.regenerateInfo();
 					}
-				} catch (Exception e) {
+				} catch (final Exception e) {
 					this.logger.logException(e);
 				}
 			}
@@ -1245,19 +1249,19 @@ public class Server {
 		}
 
 		if (this.tickCounter % 100 == 0) {
-			for (Level level : this.levelArray) {
+			for (final Level level : this.levelArray) {
 				level.doChunkGarbageCollection();
 			}
 		}
 
 		Timings.fullServerTickTimer.stopTiming();
 		// long now = System.currentTimeMillis();
-		long nowNano = System.nanoTime();
+		final long nowNano = System.nanoTime();
 		// float tick = Math.min(20, 1000 / Math.max(1, now - tickTime));
 		// float use = Math.min(1, (now - tickTime) / 50);
 
-		float tick = (float) Math.min(20, 1000000000 / Math.max(1000000, ((double) nowNano - tickTimeNano)));
-		float use = (float) Math.min(1, ((double) (nowNano - tickTimeNano)) / 50000000);
+		final float tick = (float) Math.min(20, 1000000000 / Math.max(1000000, ((double) nowNano - tickTimeNano)));
+		final float use = (float) Math.min(1, ((double) (nowNano - tickTimeNano)) / 50000000);
 
 		if (this.maxTick > tick) {
 			this.maxTick = tick;
@@ -1292,10 +1296,10 @@ public class Server {
 			return;
 		}
 
-		Runtime runtime = Runtime.getRuntime();
-		double used = NukkitMath.round((double) (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024, 2);
-		double max = NukkitMath.round(((double) runtime.maxMemory()) / 1024 / 1024, 2);
-		String usage = Math.round(used / max * 100) + "%";
+		final Runtime runtime = Runtime.getRuntime();
+		final double used = NukkitMath.round((double) (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024, 2);
+		final double max = NukkitMath.round(((double) runtime.maxMemory()) / 1024 / 1024, 2);
+		final String usage = Math.round(used / max * 100) + "%";
 		String title = (char) 0x1b + "]0;" + this.getName() + " " + this.getNukkitVersion() + " | Online "
 				+ this.players.size() + "/" + this.getMaxPlayers() + " | Memory " + usage;
 		if (!Nukkit.shortTitle) {
@@ -1359,9 +1363,9 @@ public class Server {
 		return this.autoSave;
 	}
 
-	public void setAutoSave(boolean autoSave) {
+	public void setAutoSave(final boolean autoSave) {
 		this.autoSave = autoSave;
-		for (Level level : this.levelArray) {
+		for (final Level level : this.levelArray) {
 			level.setAutoSave(this.autoSave);
 		}
 	}
@@ -1382,11 +1386,11 @@ public class Server {
 		return this.getPropertyBoolean("force-gamemode", false);
 	}
 
-	public static String getGamemodeString(int mode) {
+	public static String getGamemodeString(final int mode) {
 		return getGamemodeString(mode, false);
 	}
 
-	public static String getGamemodeString(int mode, boolean direct) {
+	public static String getGamemodeString(final int mode, final boolean direct) {
 		switch (mode) {
 		case Player.SURVIVAL:
 			return direct ? "Survival" : "%gameMode.survival";
@@ -1400,7 +1404,7 @@ public class Server {
 		return "UNKNOWN";
 	}
 
-	public static int getGamemodeFromString(String str) {
+	public static int getGamemodeFromString(final String str) {
 		switch (str.trim().toLowerCase()) {
 		case "0":
 		case "survival":
@@ -1427,7 +1431,7 @@ public class Server {
 		return -1;
 	}
 
-	public static int getDifficultyFromString(String str) {
+	public static int getDifficultyFromString(final String str) {
 		switch (str.trim().toLowerCase()) {
 		case "0":
 		case "peaceful":
@@ -1539,8 +1543,8 @@ public class Server {
 
 	public float getTicksPerSecondAverage() {
 		float sum = 0;
-		int count = this.tickAverage.length;
-		for (float aTickAverage : this.tickAverage) {
+		final int count = this.tickAverage.length;
+		for (final float aTickAverage : this.tickAverage) {
 			sum += aTickAverage;
 		}
 		return (float) NukkitMath.round(sum / count, 2);
@@ -1552,8 +1556,8 @@ public class Server {
 
 	public float getTickUsageAverage() {
 		float sum = 0;
-		int count = this.useAverage.length;
-		for (float aUseAverage : this.useAverage) {
+		final int count = this.useAverage.length;
+		for (final float aUseAverage : this.useAverage) {
 			sum += aUseAverage;
 		}
 		return ((float) Math.round(sum / count * 100)) / 100;
@@ -1567,12 +1571,12 @@ public class Server {
 		return new HashMap<>(playerList);
 	}
 
-	public void addRecipe(Recipe recipe) {
+	public void addRecipe(final Recipe recipe) {
 		this.craftingManager.registerRecipe(recipe);
 	}
 
-	public IPlayer getOfflinePlayer(String name) {
-		IPlayer result = this.getPlayerExact(name.toLowerCase());
+	public IPlayer getOfflinePlayer(final String name) {
+		final IPlayer result = this.getPlayerExact(name.toLowerCase());
 		if (result == null) {
 			return new OfflinePlayer(this, name, loadOfflinePlayerData(name));
 		}
@@ -1584,12 +1588,12 @@ public class Server {
 		
 	public CompoundTag loadOfflinePlayerData(String name) {
 		name = name.toLowerCase();
-		File file = playersDb.file(name + ".dat");
+		final File file = playersDb.file(name + ".dat");
 
 		if (this.shouldSavePlayerData() && file.exists()) {
 			try {
 				return NBTIO.readCompressed(new FileInputStream(file));
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				file.renameTo(new File(file.getAbsolutePath() + ".bak"));
 				this.logger.notice(this.getLanguage().translateString("nukkit.data.playerCorrupted", name));
 				return null;
@@ -1600,10 +1604,10 @@ public class Server {
 		}
 	}
 	
-	private CompoundTag createOfflinePlayerData(String name) {
+	private CompoundTag createOfflinePlayerData(final String name) {
 
-		Position spawn = this.getDefaultLevel().getSafeSpawn();
-		CompoundTag nbt = new CompoundTag().putLong("firstPlayed", System.currentTimeMillis() / 1000)
+		final Position spawn = this.getDefaultLevel().getSafeSpawn();
+		final CompoundTag nbt = new CompoundTag().putLong("firstPlayed", System.currentTimeMillis() / 1000)
 				.putLong("lastPlayed", System.currentTimeMillis() / 1000)
 				.putList(new ListTag<DoubleTag>("Pos").add(new DoubleTag("0", spawn.x)).add(new DoubleTag("1", spawn.y))
 						.add(new DoubleTag("2", spawn.z)))
@@ -1619,8 +1623,8 @@ public class Server {
 		return nbt;
 	}
 
-	public CompoundTag loadOrCreateOfflinePlayerData(String name) {
-		CompoundTag data = loadOfflinePlayerData(name);
+	public CompoundTag loadOrCreateOfflinePlayerData(final String name) {
+		final CompoundTag data = loadOfflinePlayerData(name);
 		if (data == null) {
 			return createOfflinePlayerData(name);
 		} else {
@@ -1628,14 +1632,14 @@ public class Server {
 		}
 	}
 	
-	public void saveOfflinePlayerData(String name, CompoundTag tag) {
+	public void saveOfflinePlayerData(final String name, final CompoundTag tag) {
 		this.saveOfflinePlayerData(name, tag, false);
 	}
 
-	public void saveOfflinePlayerData(String name, CompoundTag tag, boolean async) {
+	public void saveOfflinePlayerData(final String name, final CompoundTag tag, final boolean async) {
 		if (this.shouldSavePlayerData()) {
 			try {
-				File playerDat = playersDb.file(name.toLowerCase() + ".dat");
+				final File playerDat = playersDb.file(name.toLowerCase() + ".dat");
 				if (async) {
 					this.getScheduler().scheduleAsyncTask(
 							new FileWriteTask(playerDat, NBTIO.writeGZIPCompressed(tag, ByteOrder.BIG_ENDIAN)));
@@ -1643,7 +1647,7 @@ public class Server {
 					Utils.writeFile(playerDat,
 							new ByteArrayInputStream(NBTIO.writeGZIPCompressed(tag, ByteOrder.BIG_ENDIAN)));
 				}
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				this.logger.critical(this.getLanguage().translateString("nukkit.data.saveError",
 						new String[] { name, e.getMessage() }));
 				if (Nukkit.DEBUG > 1) {
@@ -1657,9 +1661,9 @@ public class Server {
 		Player found = null;
 		name = name.toLowerCase();
 		int delta = Integer.MAX_VALUE;
-		for (Player player : this.getOnlinePlayers().values()) {
+		for (final Player player : this.getOnlinePlayers().values()) {
 			if (player.getName().toLowerCase().startsWith(name)) {
-				int curDelta = player.getName().length() - name.length();
+				final int curDelta = player.getName().length() - name.length();
 				if (curDelta < delta) {
 					found = player;
 					delta = curDelta;
@@ -1675,7 +1679,7 @@ public class Server {
 
 	public Player getPlayerExact(String name) {
 		name = name.toLowerCase();
-		for (Player player : this.getOnlinePlayers().values()) {
+		for (final Player player : this.getOnlinePlayers().values()) {
 			if (player.getName().toLowerCase().equals(name)) {
 				return player;
 			}
@@ -1686,8 +1690,8 @@ public class Server {
 
 	public Player[] matchPlayer(String partialName) {
 		partialName = partialName.toLowerCase();
-		List<Player> matchedPlayer = new ArrayList<>();
-		for (Player player : this.getOnlinePlayers().values()) {
+		final List<Player> matchedPlayer = new ArrayList<>();
+		for (final Player player : this.getOnlinePlayers().values()) {
 			if (player.getName().toLowerCase().equals(partialName)) {
 				return new Player[] { player };
 			} else if (player.getName().toLowerCase().contains(partialName)) {
@@ -1698,16 +1702,16 @@ public class Server {
 		return matchedPlayer.toArray(new Player[matchedPlayer.size()]);
 	}
 
-	public void removePlayer(Player player) {
+	public void removePlayer(final Player player) {
 		if (this.identifier.containsKey(player.rawHashCode())) {
-			String identifier = this.identifier.get(player.rawHashCode());
+			final String identifier = this.identifier.get(player.rawHashCode());
 			this.players.remove(identifier);
 			this.identifier.remove(player.rawHashCode());
 			return;
 		}
 
-		for (String identifier : new ArrayList<>(this.players.keySet())) {
-			Player p = this.players.get(identifier);
+		for (final String identifier : new ArrayList<>(this.players.keySet())) {
+			final Player p = this.players.get(identifier);
 			if (player == p) {
 				this.players.remove(identifier);
 				this.identifier.remove(player.rawHashCode());
@@ -1724,26 +1728,26 @@ public class Server {
 		return defaultLevel;
 	}
 
-	public void setDefaultLevel(Level defaultLevel) {
+	public void setDefaultLevel(final Level defaultLevel) {
 		if (defaultLevel == null
 				|| (this.isLevelLoaded(defaultLevel.getFolderName()) && defaultLevel != this.defaultLevel)) {
 			this.defaultLevel = defaultLevel;
 		}
 	}
 
-	public boolean isLevelLoaded(String name) {
+	public boolean isLevelLoaded(final String name) {
 		return this.getLevelByName(name) != null;
 	}
 
-	public Level getLevel(int levelId) {
+	public Level getLevel(final int levelId) {
 		if (this.levels.containsKey(levelId)) {
 			return this.levels.get(levelId);
 		}
 		return null;
 	}
 
-	public Level getLevelByName(String name) {
-		for (Level level : this.levelArray) {
+	public Level getLevelByName(final String name) {
+		for (final Level level : this.levelArray) {
 			if (level.getFolderName().equals(name)) {
 				return level;
 			}
@@ -1752,11 +1756,11 @@ public class Server {
 		return null;
 	}
 
-	public boolean unloadLevel(Level level) {
+	public boolean unloadLevel(final Level level) {
 		return this.unloadLevel(level, false);
 	}
 
-	public boolean unloadLevel(Level level, boolean forceUnload) {
+	public boolean unloadLevel(final Level level, final boolean forceUnload) {
 		if (level == this.getDefaultLevel() && !forceUnload) {
 			throw new IllegalStateException(
 					"The default level cannot be unloaded while running, please switch levels.");
@@ -1766,7 +1770,7 @@ public class Server {
 
 	}
 
-	public boolean loadLevel(String name) throws IOException {
+	public boolean loadLevel(final String name) throws IOException {
 		if (Objects.equals(name.trim(), "")) {
 			throw new LevelException("Invalid empty level name");
 		}
@@ -1779,10 +1783,10 @@ public class Server {
 		}
 
 		try {
-			DataStore levelStore = worldsDb.subStore(name);
-			String path = levelStore.basepath().toAbsolutePath().toString();
+			final DataStore levelStore = worldsDb.subStore(name);
+			final String path = levelStore.basepath().toAbsolutePath().toString();
 
-			Class<? extends LevelProvider> provider = LevelProviderManager.getProvider(path);
+			final Class<? extends LevelProvider> provider = LevelProviderManager.getProvider(path);
 
 			if (provider == null) {
 				this.logger.error(this.getLanguage().translateString("nukkit.level.loadError",
@@ -1791,7 +1795,7 @@ public class Server {
 				return false;
 			}
 
-			Level level = new Level(this, name, path, provider);
+			final Level level = new Level(this, name, path, provider);
 			this.levels.put(level.getId(), level);
 
 			level.initLevel();
@@ -1801,7 +1805,7 @@ public class Server {
 			level.setTickRate(this.baseTickRate);
 
 			return true;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			this.logger.error(this.getLanguage().translateString("nukkit.level.loadError",
 					new String[] { name, e.getMessage() }));
 			this.logger.logException(e);
@@ -1810,25 +1814,25 @@ public class Server {
 
 	}
 
-	public boolean generateLevel(String name) throws IOException {
+	public boolean generateLevel(final String name) throws IOException {
 		return this.generateLevel(name, new java.util.Random().nextLong());
 	}
 
-	public boolean generateLevel(String name, long seed) throws IOException {
+	public boolean generateLevel(final String name, final long seed) throws IOException {
 		return this.generateLevel(name, seed, null);
 	}
 
-	public boolean generateLevel(String name, long seed, Class<? extends Generator> generator) throws IOException {
+	public boolean generateLevel(final String name, final long seed, final Class<? extends Generator> generator) throws IOException {
 		return this.generateLevel(name, seed, generator, new HashMap<>());
 	}
 
-	public boolean generateLevel(String name, long seed, Class<? extends Generator> generator,
-			Map<String, Object> options) throws IOException {
+	public boolean generateLevel(final String name, final long seed, final Class<? extends Generator> generator,
+			final Map<String, Object> options) throws IOException {
 		return generateLevel(name, seed, generator, options, null);
 	}
 
-	public boolean generateLevel(String name, long seed, Class<? extends Generator> generator,
-			Map<String, Object> options, Class<? extends LevelProvider> provider) throws IOException {
+	public boolean generateLevel(final String name, final long seed, Class<? extends Generator> generator,
+			final Map<String, Object> options, Class<? extends LevelProvider> provider) throws IOException {
 		if (Objects.equals(name.trim(), "") || this.isLevelGenerated(name)) {
 			return false;
 		}
@@ -1849,12 +1853,12 @@ public class Server {
 		}
 
 		try {
-			DataStore levelStore = worldsDb.subStore(name);
-			String path = levelStore.basepath().toAbsolutePath().toString();
+			final DataStore levelStore = worldsDb.subStore(name);
+			final String path = levelStore.basepath().toAbsolutePath().toString();
 			provider.getMethod("generate", String.class, String.class, long.class, Class.class, Map.class).invoke(null,
 					path, name, seed, generator, options);
 
-			Level level = new Level(this, name, path, provider);
+			final Level level = new Level(this, name, path, provider);
 			this.levels.put(level.getId(), level);
 
 			level.initLevel();
@@ -1862,7 +1866,7 @@ public class Server {
 			this.getPluginManager().callEvent(new LevelInitEvent(level));
 			
 			this.getPluginManager().callEvent(new LevelLoadEvent(level));
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			this.logger.error(this.getLanguage().translateString("nukkit.level.generationError",
 					new String[] { name, e.getMessage() }));
 			this.logger.logException(e);
@@ -1898,14 +1902,14 @@ public class Server {
 		return true;
 	}
 
-	public boolean isLevelGenerated(String name) throws IOException {
+	public boolean isLevelGenerated(final String name) throws IOException {
 		if (Objects.equals(name.trim(), "")) {
 			return false;
 		}
 
 		if (this.getLevelByName(name) == null) {
 
-			DataStore levelStore = worldsDb.subStore(name);
+			final DataStore levelStore = worldsDb.subStore(name);
 			if (LevelProviderManager.getProvider(levelStore.basepath().toAbsolutePath().toString()) == null) {
 				return false;
 			}
@@ -1931,12 +1935,12 @@ public class Server {
 		return this.config;
 	}
 
-	public Object getConfig(String variable) {
+	public Object getConfig(final String variable) {
 		return this.getConfig(variable, null);
 	}
 
-	public Object getConfig(String variable, Object defaultValue) {
-		Object value = this.config.get(variable);
+	public Object getConfig(final String variable, final Object defaultValue) {
+		final Object value = this.config.get(variable);
 		return value == null ? defaultValue : value;
 	}
 
@@ -1944,48 +1948,48 @@ public class Server {
 		return this.properties;
 	}
 
-	public Object getProperty(String variable) {
+	public Object getProperty(final String variable) {
 		return this.getProperty(variable, null);
 	}
 
-	public Object getProperty(String variable, Object defaultValue) {
+	public Object getProperty(final String variable, final Object defaultValue) {
 		return this.properties.exists(variable) ? this.properties.get(variable) : defaultValue;
 	}
 
-	public void setPropertyString(String variable, String value) {
+	public void setPropertyString(final String variable, final String value) {
 		this.properties.set(variable, value);
 		this.properties.save();
 	}
 
-	public String getPropertyString(String variable) {
+	public String getPropertyString(final String variable) {
 		return this.getPropertyString(variable, null);
 	}
 
-	public String getPropertyString(String variable, String defaultValue) {
+	public String getPropertyString(final String variable, final String defaultValue) {
 		return this.properties.exists(variable) ? (String) this.properties.get(variable) : defaultValue;
 	}
 
-	public int getPropertyInt(String variable) {
+	public int getPropertyInt(final String variable) {
 		return this.getPropertyInt(variable, null);
 	}
 
-	public int getPropertyInt(String variable, Integer defaultValue) {
+	public int getPropertyInt(final String variable, final Integer defaultValue) {
 		return this.properties.exists(variable) ? (!this.properties.get(variable).equals("")
 				? Integer.parseInt(String.valueOf(this.properties.get(variable)))
 				: defaultValue) : defaultValue;
 	}
 
-	public void setPropertyInt(String variable, int value) {
+	public void setPropertyInt(final String variable, final int value) {
 		this.properties.set(variable, value);
 		this.properties.save();
 	}
 
-	public boolean getPropertyBoolean(String variable) {
+	public boolean getPropertyBoolean(final String variable) {
 		return this.getPropertyBoolean(variable, null);
 	}
 
-	public boolean getPropertyBoolean(String variable, Object defaultValue) {
-		Object value = this.properties.exists(variable) ? this.properties.get(variable) : defaultValue;
+	public boolean getPropertyBoolean(final String variable, final Object defaultValue) {
+		final Object value = this.properties.exists(variable) ? this.properties.get(variable) : defaultValue;
 		if (value instanceof Boolean) {
 			return (Boolean) value;
 		}
@@ -1999,13 +2003,13 @@ public class Server {
 		return false;
 	}
 
-	public void setPropertyBoolean(String variable, boolean value) {
+	public void setPropertyBoolean(final String variable, final boolean value) {
 		this.properties.set(variable, value ? "1" : "0");
 		this.properties.save();
 	}
 
-	public PluginIdentifiableCommand getPluginCommand(String name) {
-		Command command = this.commandMap.getCommand(name);
+	public PluginIdentifiableCommand getPluginCommand(final String name) {
+		final Command command = this.commandMap.getCommand(name);
 		if (command instanceof PluginIdentifiableCommand) {
 			return (PluginIdentifiableCommand) command;
 		} else {
@@ -2021,39 +2025,39 @@ public class Server {
 		return this.banByIP;
 	}
 
-	public void addOp(String name) {
+	public void addOp(final String name) {
 		this.operators.set(name.toLowerCase(), true);
-		Player player = this.getPlayerExact(name);
+		final Player player = this.getPlayerExact(name);
 		if (player != null) {
 			player.recalculatePermissions();
 		}
 		this.operators.save(true);
 	}
 
-	public void removeOp(String name) {
+	public void removeOp(final String name) {
 		this.operators.remove(name.toLowerCase());
-		Player player = this.getPlayerExact(name);
+		final Player player = this.getPlayerExact(name);
 		if (player != null) {
 			player.recalculatePermissions();
 		}
 		this.operators.save();
 	}
 
-	public void addWhitelist(String name) {
+	public void addWhitelist(final String name) {
 		this.whitelist.set(name.toLowerCase(), true);
 		this.whitelist.save(true);
 	}
 
-	public void removeWhitelist(String name) {
+	public void removeWhitelist(final String name) {
 		this.whitelist.remove(name.toLowerCase());
 		this.whitelist.save(true);
 	}
 
-	public boolean isWhitelisted(String name) {
+	public boolean isWhitelisted(final String name) {
 		return !this.hasWhitelist() || this.operators.exists(name, true) || this.whitelist.exists(name, true);
 	}
 
-	public boolean isOp(String name) {
+	public boolean isOp(final String name) {
 		return this.operators.exists(name, true);
 	}
 
@@ -2074,15 +2078,15 @@ public class Server {
 	}
 
 	public Map<String, List<String>> getCommandAliases() {
-		Object section = this.getConfig("aliases");
-		Map<String, List<String>> result = new LinkedHashMap<>();
+		final Object section = this.getConfig("aliases");
+		final Map<String, List<String>> result = new LinkedHashMap<>();
 		if (section instanceof Map) {
-			for (Map.Entry entry : (Set<Map.Entry>) ((Map) section).entrySet()) {
-				List<String> commands = new ArrayList<>();
-				String key = (String) entry.getKey();
-				Object value = entry.getValue();
+			for (final Map.Entry entry : (Set<Map.Entry>) ((Map) section).entrySet()) {
+				final List<String> commands = new ArrayList<>();
+				final String key = (String) entry.getKey();
+				final Object value = entry.getValue();
 				if (value instanceof List) {
-					for (String string : (List<String>) value) {
+					for (final String string : (List<String>) value) {
 						commands.add(string);
 					}
 				} else {

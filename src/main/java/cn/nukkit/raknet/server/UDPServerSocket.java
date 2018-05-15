@@ -23,7 +23,7 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
  * author: MagicDroidX
  * Nukkit Project
  */
-public class UDPServerSocket extends ChannelInboundHandlerAdapter {
+public class UDPServerSocket extends ChannelInboundHandlerAdapter implements AutoCloseable {
 
     protected final Logger logger;
     protected Bootstrap bootstrap;
@@ -31,15 +31,15 @@ public class UDPServerSocket extends ChannelInboundHandlerAdapter {
 
     protected ConcurrentLinkedQueue<DatagramPacket> packets = new ConcurrentLinkedQueue<>();
 
-    public UDPServerSocket(Logger logger) {
+    public UDPServerSocket(final Logger logger) {
         this(logger, 19132, "0.0.0.0");
     }
 
-    public UDPServerSocket(Logger logger, int port) {
+    public UDPServerSocket(final Logger logger, final int port) {
         this(logger, port, "0.0.0.0");
     }
 
-    public UDPServerSocket(Logger logger, int port, String interfaz) {
+    public UDPServerSocket(final Logger logger, final int port, final String interfaz) {
         this.logger = logger;
         try {
             if (Epoll.isAvailable()) {
@@ -58,14 +58,15 @@ public class UDPServerSocket extends ChannelInboundHandlerAdapter {
                 this.logger.info("Epoll is unavailable. Reverting to NioEventLoop.");
             }
             channel = bootstrap.bind(interfaz, port).sync().channel();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             this.logger.critical("**** FAILED TO BIND TO " + interfaz + ":" + port + "!");
             this.logger.critical("Perhaps a server is already running on that port?");
             System.exit(1);
         }
     }
 
-    public void close() {
+    @Override
+	public void close() {
         bootstrap.config().group().shutdownGracefully();
         if (channel != null) {
             channel.close().syncUninterruptibly();
@@ -80,22 +81,22 @@ public class UDPServerSocket extends ChannelInboundHandlerAdapter {
         return this.packets.poll();
     }
 
-    public int writePacket(byte[] data, String dest, int port) throws IOException {
+    public int writePacket(final byte[] data, final String dest, final int port) throws IOException {
         return this.writePacket(data, new InetSocketAddress(dest, port));
     }
 
-    public int writePacket(byte[] data, InetSocketAddress dest) throws IOException {
+    public int writePacket(final byte[] data, final InetSocketAddress dest) throws IOException {
         channel.writeAndFlush(new DatagramPacket(Unpooled.wrappedBuffer(data), dest));
         return data.length;
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(final ChannelHandlerContext ctx, final Object msg) throws Exception {
         this.packets.add((DatagramPacket) msg);
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+    public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
         this.logger.warning(cause.getMessage(), cause);
     }
 }

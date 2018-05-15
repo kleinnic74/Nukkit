@@ -88,18 +88,10 @@ public class ServerHandler {
     }
 
     public void shutdown() {
-        this.server.shutdown();
-        synchronized (this) {
-            try {
-                this.wait(20);
-            } catch (final InterruptedException e) {
-                //ignore
-            }
-        }
+		this.server.pushMainToThreadPacket(new byte[]{RakNet.PACKET_SHUTDOWN});
     }
 
     public void emergencyShutdown() {
-        this.server.shutdown();
         this.server.pushMainToThreadPacket(new byte[]{RakNet.PACKET_EMERGENCY_SHUTDOWN});
     }
 
