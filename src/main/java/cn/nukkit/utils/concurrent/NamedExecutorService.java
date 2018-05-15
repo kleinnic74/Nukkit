@@ -14,29 +14,31 @@ import java.util.concurrent.TimeoutException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import cn.nukkit.utils.MainLogger;
+
 public class NamedExecutorService {
 
 	private static final class DelegatingStoppableFuture<V> implements Future<V> {
 		private final StoppableRunnable task;
 		private final Future<V> f;
 
-		private DelegatingStoppableFuture(StoppableRunnable task, Future<V> f) {
+		private DelegatingStoppableFuture(final StoppableRunnable task, final Future<V> f) {
 			this.task = task;
 			this.f = f;
 		}
 
 		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			long gracePeriod = task.shutdown();
+		public boolean cancel(final boolean mayInterruptIfRunning) {
+			final long gracePeriod = task.shutdown();
 			try {
 				f.get(gracePeriod, TimeUnit.MILLISECONDS);
 				return true;
-			} catch (InterruptedException e) {
+			} catch (final InterruptedException e) {
 				Thread.currentThread().interrupt();
 				return false;
-			} catch (ExecutionException e) {
+			} catch (final ExecutionException e) {
 				return true;
-			} catch (TimeoutException e) {
+			} catch (final TimeoutException e) {
 				return f.cancel(mayInterruptIfRunning);
 			}
 		}
@@ -47,7 +49,7 @@ public class NamedExecutorService {
 		}
 
 		@Override
-		public V get(long timeout, TimeUnit unit)
+		public V get(final long timeout, final TimeUnit unit)
 				throws InterruptedException, ExecutionException, TimeoutException {
 			return f.get(timeout, unit);
 		}
@@ -63,37 +65,50 @@ public class NamedExecutorService {
 		}
 	}
 
-	private ThreadFactoryBuilder baseFactory = new ThreadFactoryBuilder().setDaemon(true);
-	
-	private Map<String, ExecutorService> factories = new HashMap<>();
+	private final ThreadFactoryBuilder baseFactory = new ThreadFactoryBuilder().setDaemon(true);
 
-	private List<Future<?>> tasks = new ArrayList<>();
+	private final Map<String, ExecutorService> factories = new HashMap<>();
 
-	public Future<?> launch(String name, Runnable task) {
-		Future<?> f = doLaunch(name, task);
+	private final List<Future<?>> tasks = new ArrayList<>();
+
+	public Future<?> launch(final String name, final Runnable task) {
+		final Future<?> f = doLaunch(name, task);
 		tasks.add(f);
 		return doLaunch(name, task);
 	}
-	
-	public Future<?> launch(String name, StoppableRunnable task) {
-		Future<?> f = doLaunch(name, task);
+
+	public Future<?> launch(final String name, final StoppableRunnable task) {
+		final Future<?> f = doLaunch(name, wrap(task));
 		tasks.add(f);
 		return new DelegatingStoppableFuture(task, f);
 	}
-	
-	private Future<?> doLaunch(String name, Runnable task) {
+
+	private Runnable wrap(final Runnable task) {
+		return () -> {
+			try {
+				MainLogger.getLogger().info(String.format("Starting thread %s...", Thread.currentThread().getName()));
+				task.run();
+				MainLogger.getLogger().info(String.format("Thread %s terminated", Thread.currentThread().getName()));
+			} catch (final Throwable t) {
+				MainLogger.getLogger().critical(
+						String.format("Uncaught exception in thread %s: ", Thread.currentThread().getName()), t);
+			}
+		};
+	}
+
+	private Future<?> doLaunch(final String name, final Runnable task) {
 		Objects.requireNonNull(task);
 		if (!factories.containsKey(name)) {
-			factories.put(name, Executors.newCachedThreadPool(baseFactory.setNameFormat(name+"-%d").build()));
+			factories.put(name, Executors.newCachedThreadPool(baseFactory.setNameFormat(name + "-%d").build()));
 		}
-		Future<?> future = factories.get(name).submit(task);
+		final Future<?> future = factories.get(name).submit(task);
 		return future;
 	}
 
 	public void shutdown() {
-        for(Future<?> subTask : tasks) {
-        	subTask.cancel(true);
-        }
+		for (final Future<?> subTask : tasks) {
+			subTask.cancel(true);
+		}
 	}
-	
+
 }

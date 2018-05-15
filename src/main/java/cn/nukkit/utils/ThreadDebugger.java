@@ -4,6 +4,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -13,6 +14,7 @@ public class ThreadDebugger {
 		ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
 		return new ThreadDebugger(threadMXBean);
 	}
+
 	private static void dumpThread(ThreadInfo thread, Logger logger) {
 		logger.emergency("Current Thread: " + thread.getThreadName());
 		logger.emergency("\tPID: " + thread.getThreadId() + " | Suspended: " + thread.isSuspended() + " | Native: "
@@ -33,7 +35,7 @@ public class ThreadDebugger {
 
 	private ThreadMXBean mx;
 
-	private Map<Long, ThreadInfo> threadsById;
+	private final Map<Long, ThreadInfo> threadsById = new HashMap<>();
 
 	private ThreadDebugger(ThreadMXBean threadMXBean) {
 		this.mx = Objects.requireNonNull(threadMXBean);
@@ -50,7 +52,7 @@ public class ThreadDebugger {
 		}
 	}
 
-	public void dumpDeadlocks(MainLogger logger) {
+	public void dumpDeadlocks(Logger logger) {
 		long[] deadlocked = mx.findDeadlockedThreads();
 		if (deadlocked != null) {
 			for (long threadId : deadlocked) {
