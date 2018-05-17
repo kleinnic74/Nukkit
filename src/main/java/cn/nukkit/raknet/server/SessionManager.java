@@ -53,8 +53,6 @@ public class SessionManager {
 
     protected final RakNetServer server;
 
-//    protected final UDPServerSocket socket;
-
     protected int receiveBytes = 0;
     protected int sendBytes = 0;
 
@@ -114,7 +112,7 @@ public class SessionManager {
                     // else ignore
                 }
             }
-            while (this.receiveStream(socket)) ;
+            while (this.receiveStream()) ;
 
             final long time = System.currentTimeMillis() - start;
             if (time < 50) {
@@ -342,7 +340,7 @@ public class SessionManager {
         }
     }
 
-    public boolean receiveStream(final UDPServerSocket socket) throws Exception {
+    public boolean receiveStream() throws Exception {
         final byte[] packet = this.server.readMainToThreadPacket();
         if (packet != null && packet.length > 0) {
             final byte id = packet[0];
