@@ -19,7 +19,7 @@ public class MainLogger implements StoppableRunnable, Logger {
 	private boolean isShutdown = false;
 	protected LogLevel logLevel = LogLevel.DEFAULT_LEVEL;
 
-	private List<LoggingBackend> backends = new ArrayList<>();
+	private final List<LoggingBackend> backends = new ArrayList<>();
 
 	public synchronized static MainLogger getLogger() {
 		if (logger == null) {
@@ -32,77 +32,78 @@ public class MainLogger implements StoppableRunnable, Logger {
 		this(LogLevel.DEFAULT_LEVEL);
 	}
 
-	private MainLogger(LogLevel logLevel) {
+	private MainLogger(final LogLevel logLevel) {
 		this.logLevel = Objects.requireNonNull(logLevel);
 	}
 
-	private MainLogger(boolean logDebug) {
+	private MainLogger(final boolean logDebug) {
 		this(logDebug ? LogLevel.DEBUG : LogLevel.INFO);
 	}
 
-	public void addBackend(LoggingBackend backend) {
+	public void addBackend(final LoggingBackend backend) {
 		if (backend != null) {
 			backends.add(backend);
 		}
 	}
 
 	@Override
-	public void emergency(String message) {
-		if (LogLevel.EMERGENCY.getLevel() <= logLevel.getLevel())
+	public void emergency(final String message) {
+		if (logLevel.allows(LogLevel.EMERGENCY))
 			this.send(TextFormat.RED + "[EMERGENCY] " + message);
 	}
 
 	@Override
-	public void alert(String message) {
-		if (LogLevel.ALERT.getLevel() <= logLevel.getLevel())
+	public void alert(final String message) {
+		if (logLevel.allows(LogLevel.ALERT))
 			this.send(TextFormat.RED + "[ALERT] " + message);
 	}
 
 	@Override
-	public void critical(String message) {
-		if (LogLevel.CRITICAL.getLevel() <= logLevel.getLevel())
+	public void critical(final String message) {
+		if (logLevel.allows(LogLevel.CRITICAL))
 			this.send(TextFormat.RED + "[CRITICAL] " + message);
 	}
 
 	@Override
-	public void error(String message) {
-		if (LogLevel.ERROR.getLevel() <= logLevel.getLevel())
+	public void error(final String message) {
+		if (logLevel.allows(LogLevel.ERROR))
 			this.send(TextFormat.DARK_RED + "[ERROR] " + message);
 	}
 
 	@Override
-	public void warning(String message) {
-		if (LogLevel.WARNING.getLevel() <= logLevel.getLevel())
+	public void warning(final String message) {
+		if (logLevel.allows(LogLevel.WARNING))
 			this.send(TextFormat.YELLOW + "[WARNING] " + message);
 	}
 
 	@Override
-	public void notice(String message) {
-		if (LogLevel.NOTICE.getLevel() <= logLevel.getLevel())
+	public void notice(final String message) {
+		if (logLevel.allows(LogLevel.NOTICE))
 			this.send(TextFormat.AQUA + "[NOTICE] " + message);
 	}
 
 	@Override
-	public void info(String message) {
-		if (LogLevel.INFO.getLevel() <= logLevel.getLevel())
+	public void info(final String message) {
+		if (logLevel.allows(LogLevel.INFO))
 			this.send(TextFormat.WHITE + "[INFO] " + message);
 	}
 
 	@Override
-	public void debug(String message) {
-		if (LogLevel.DEBUG.getLevel() <= logLevel.getLevel())
+	public void debug(final String message) {
+		if (logLevel.allows(LogLevel.DEBUG))
 			this.send(TextFormat.GRAY + "[DEBUG] " + message);
 	}
 
-	public void setLogDebug(Boolean logDebug) {
+	public void setLogDebug(final Boolean logDebug) {
 		this.logLevel = logDebug ? LogLevel.DEBUG : LogLevel.INFO;
 	}
 
 	@Override
-	public void log(LogLevel level, String message) {
+	public void log(final LogLevel level, final String message) {
 		level.log(this, message);
 	}
 
+	@Override
 	public long shutdown() {
 		synchronized (this) {
 			this.shutdown = true;
@@ -111,14 +112,14 @@ public class MainLogger implements StoppableRunnable, Logger {
 		return 1000;
 	}
 
-	protected void send(String message) {
+	protected void send(final String message) {
 		this.send(message, -1);
 		synchronized (this) {
 			this.notify();
 		}
 	}
 
-	protected void send(String message, int level) {
+	protected void send(final String message, final int level) {
 		logBuffer.add(message);
 	}
 
@@ -143,15 +144,15 @@ public class MainLogger implements StoppableRunnable, Logger {
 					wait(25000); // Wait for next message
 				}
 				Thread.sleep(5); // Buffer for 5ms to reduce back and forth between disk
-			} catch (InterruptedException ignore) {
+			} catch (final InterruptedException ignore) {
 			}
 		}
 	}
 
 	private void flushBuffer() {
-		Date now = new Date();
+		final Date now = new Date();
 		while (!logBuffer.isEmpty()) {
-			String message = logBuffer.poll();
+			final String message = logBuffer.poll();
 			if (message != null) {
 				backends.forEach(be -> be.log(now, message));
 			}
@@ -159,52 +160,53 @@ public class MainLogger implements StoppableRunnable, Logger {
 	}
 
 	@Override
-	public void emergency(String message, Throwable t) {
+	public void emergency(final String message, final Throwable t) {
 		this.emergency(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void alert(String message, Throwable t) {
+	public void alert(final String message, final Throwable t) {
 		this.alert(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void critical(String message, Throwable t) {
+	public void critical(final String message, final Throwable t) {
 		this.critical(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void error(String message, Throwable t) {
+	public void error(final String message, final Throwable t) {
 		this.error(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void warning(String message, Throwable t) {
+	public void warning(final String message, final Throwable t) {
 		this.warning(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void notice(String message, Throwable t) {
+	public void notice(final String message, final Throwable t) {
 		this.notice(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void info(String message, Throwable t) {
+	public void info(final String message, final Throwable t) {
 		this.info(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void debug(String message, Throwable t) {
+	public void debug(final String message, final Throwable t) {
 		this.debug(message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
 	@Override
-	public void log(LogLevel level, String message, Throwable t) {
+	public void log(final LogLevel level, final String message, final Throwable t) {
 		this.log(level, message + "\r\n" + Utils.getExceptionMessage(t));
 	}
 
-	public void setLevel(LogLevel level) {
+	public void setLevel(final LogLevel level) {
 		if (level != null) {
+			log(LogLevel.CRITICAL, "Log level set to "+level.name());
 			this.logLevel = level;
 		}		
 	}
