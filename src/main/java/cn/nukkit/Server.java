@@ -625,7 +625,9 @@ public class Server {
 
 		this.enablePlugins(PluginLoadOrder.POSTWORLD);
 
-		executor.launch("Watchdog", new Watchdog(this, 60000));
+        if (Nukkit.DEBUG < 2) {
+		    executor.launch("Watchdog", new Watchdog(this, 60000));
+        }
 
 		this.start();
 	}
