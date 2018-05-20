@@ -3,9 +3,6 @@ package cn.nukkit.command;
 import java.io.IOException;
 import java.util.Objects;
 
-import cn.nukkit.Server;
-import cn.nukkit.utils.completers.CommandsCompleter;
-import cn.nukkit.utils.completers.PlayersCompleter;
 import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
 import jline.console.completer.Completer;
@@ -19,7 +16,6 @@ public class Console {
 	public Console() throws IOException {
 		this.reader = new ConsoleReader();
 		reader.setPrompt("> ");
-		// instance = this;
 	}
 
 	public void close()
