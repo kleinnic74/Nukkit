@@ -41,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * @author MagicDroidX
  */
-public abstract class Entity extends Location implements Metadatable {
+public abstract class Entity extends Location implements Metadatable, Rotatable {
 
     public static final int NETWORK_ID = -1;
 
@@ -1531,6 +1531,10 @@ public abstract class Entity extends Location implements Metadatable {
         return new Position(this.x, this.y, this.z, this.level);
     }
 
+    public Vector3 getPositionVector() {
+    	return this;
+    }
+    
     public Location getLocation() {
         return new Location(this.x, this.y, this.z, this.yaw, this.pitch, this.level);
     }
