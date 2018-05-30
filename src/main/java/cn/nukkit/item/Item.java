@@ -1,5 +1,6 @@
 package cn.nukkit.item;
 
+import cn.nukkit.FileLayout.DataStore;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.block.Block;
@@ -85,7 +86,7 @@ public class Item implements Cloneable, BlockID, ItemID {
         return false;
     }
 
-    public static void init() {
+    public static void init(DataStore dataDb) {
         if (list == null) {
             list = new Class[65535];
             list[IRON_SHOVEL] = ItemShovelIron.class; //256
@@ -303,25 +304,25 @@ public class Item implements Cloneable, BlockID, ItemID {
             }
         }
 
-        initCreativeItems();
+        initCreativeItems(dataDb);
     }
 
     private static final ArrayList<Item> creative = new ArrayList<>();
 
-    private static void initCreativeItems() {
+    private static void initCreativeItems(DataStore dataDb) {
         clearCreativeItems();
         Server server = Server.getInstance();
 
-        String path = server.getDataPath() + "creativeitems.json";
-        if (!new File(path).exists()) {
+        File creativeItems = dataDb.file("creativeitems.json");
+        if (!creativeItems.exists()) {
             try {
-                Utils.writeFile(path, Server.class.getClassLoader().getResourceAsStream("creativeitems.json"));
+                Utils.writeFile(creativeItems, Server.class.getClassLoader().getResourceAsStream("creativeitems.json"));
             } catch (IOException e) {
                 MainLogger.getLogger().logException(e);
                 return;
             }
         }
-        List<Map> list = new Config(path, Config.YAML).getMapList("items");
+        List<Map> list = new Config(creativeItems, Config.YAML).getMapList("items");
 
         for (Map map : list) {
             try {

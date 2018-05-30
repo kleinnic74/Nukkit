@@ -1,5 +1,6 @@
 package cn.nukkit.command.defaults;
 
+import cn.nukkit.FileLayout.DataStore;
 import cn.nukkit.Server;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.network.protocol.ProtocolInfo;
@@ -12,11 +13,17 @@ import cn.nukkit.utils.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.util.Objects;
 
 public class DebugPasteCommand extends VanillaCommand {
 
-    public DebugPasteCommand(String name) {
+    private DataStore configDb;
+	private DataStore dataDb;
+
+	public DebugPasteCommand(String name, DataStore configDb, DataStore dataDb) {
         super(name, "%nukkit.command.debug.description", "%commands.debug.usage");
+        this.configDb = Objects.requireNonNull(configDb);
+        this.dataDb = Objects.requireNonNull(dataDb);
         this.setPermission("nukkit.command.debug.perform");
     }
 
@@ -31,10 +38,9 @@ public class DebugPasteCommand extends VanillaCommand {
             public void onRun() {
                 try {
                     new StatusCommand("status").execute(server.getConsoleSender(), "status", new String[]{});
-                    String dataPath = server.getDataPath();
-                    String nukkitYML = HastebinUtility.upload(new File(dataPath, "nukkit.yml"));
-                    String serverProperties = HastebinUtility.upload(new File(dataPath, "server.properties"));
-                    String latestLog = HastebinUtility.upload(new File(dataPath, "server.log"));
+                    String nukkitYML = HastebinUtility.upload(configDb.file("nukkit.yml"));
+                    String serverProperties = HastebinUtility.upload(configDb.file("server.properties"));
+                    String latestLog = HastebinUtility.upload(dataDb.file("server.log"));
                     String threadDump = HastebinUtility.upload(Utils.getAllThreadDumps());
 
                     StringBuilder b = new StringBuilder();

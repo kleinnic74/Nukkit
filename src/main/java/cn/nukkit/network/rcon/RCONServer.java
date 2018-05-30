@@ -1,6 +1,9 @@
 package cn.nukkit.network.rcon;
 
 import cn.nukkit.Server;
+import cn.nukkit.lang.BaseLang;
+import cn.nukkit.utils.Logger;
+import cn.nukkit.utils.concurrent.StoppableRunnable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -15,12 +18,14 @@ import java.nio.channels.spi.SelectorProvider;
 import java.nio.charset.Charset;
 import java.util.*;
 
+import com.google.common.base.Preconditions;
+
 /**
  * Thread that performs all RCON network work. A server.
  *
  * @author Tee7even
  */
-public class RCONServer extends Thread {
+public class RCONServer implements StoppableRunnable {
     private static final int SERVERDATA_AUTH = 3;
     private static final int SERVERDATA_AUTH_RESPONSE = 2;
     private static final int SERVERDATA_EXECCOMMAND = 2;
@@ -36,10 +41,14 @@ public class RCONServer extends Thread {
 
     private final List<RCONCommand> receiveQueue = new ArrayList<>();
     private final Map<SocketChannel, List<RCONPacket>> sendQueues = new HashMap<>();
+	private Logger logger;
+	private BaseLang language;
 
-    public RCONServer(String address, int port, String password) throws IOException {
-        this.setName("RCON");
-        this.running = true;
+    public RCONServer(BaseLang language, Logger logger, String address, int port, String password) throws IOException {
+    	this.language = Preconditions.checkNotNull(language);
+    	this.logger = Preconditions.checkNotNull(logger);
+    	Preconditions.checkState(password != null && !password.isEmpty(), "nukkit.server.rcon.emptyPasswordError");
+    	this.password = password;
 
         this.serverChannel = ServerSocketChannel.open();
         this.serverChannel.configureBlocking(false);
@@ -47,8 +56,7 @@ public class RCONServer extends Thread {
 
         this.selector = SelectorProvider.provider().openSelector();
         this.serverChannel.register(this.selector, SelectionKey.OP_ACCEPT);
-
-        this.password = password;
+    	this.logger.info(this.language.translateString("nukkit.server.rcon.running", new String[]{address, String.valueOf(port)}));
     }
 
     public RCONCommand receive() {
@@ -67,12 +75,14 @@ public class RCONServer extends Thread {
         this.send(channel, new RCONPacket(id, SERVERDATA_RESPONSE_VALUE, response.getBytes()));
     }
 
-    public void close() {
+    public long shutdown() {
         this.running = false;
         this.selector.wakeup();
+        return 500L;
     }
 
     public void run() {
+    	this.running = true;
         while (this.running) {
             try {
                 synchronized (this.sendQueues) {

@@ -33,4 +33,8 @@ public enum LogLevel implements Comparable<LogLevel> {
     public int getLevel() {
         return ordinal();
     }
+
+	public boolean allows(final LogLevel level) {
+		return this.ordinal() >= level.ordinal();
+	}
 }

@@ -1,22 +1,73 @@
 package cn.nukkit.command;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import cn.nukkit.FileLayout;
 import cn.nukkit.Server;
 import cn.nukkit.command.data.CommandParameter;
-import cn.nukkit.command.defaults.*;
-import cn.nukkit.command.simple.*;
+import cn.nukkit.command.defaults.BanCommand;
+import cn.nukkit.command.defaults.BanIpCommand;
+import cn.nukkit.command.defaults.BanListCommand;
+import cn.nukkit.command.defaults.DebugPasteCommand;
+import cn.nukkit.command.defaults.DefaultGamemodeCommand;
+import cn.nukkit.command.defaults.DeopCommand;
+import cn.nukkit.command.defaults.DifficultyCommand;
+import cn.nukkit.command.defaults.EffectCommand;
+import cn.nukkit.command.defaults.EnchantCommand;
+import cn.nukkit.command.defaults.GamemodeCommand;
+import cn.nukkit.command.defaults.GameruleCommand;
+import cn.nukkit.command.defaults.GarbageCollectorCommand;
+import cn.nukkit.command.defaults.GiveCommand;
+import cn.nukkit.command.defaults.HelpCommand;
+import cn.nukkit.command.defaults.KickCommand;
+import cn.nukkit.command.defaults.KillCommand;
+import cn.nukkit.command.defaults.ListCommand;
+import cn.nukkit.command.defaults.MeCommand;
+import cn.nukkit.command.defaults.OpCommand;
+import cn.nukkit.command.defaults.PardonCommand;
+import cn.nukkit.command.defaults.PardonIpCommand;
+import cn.nukkit.command.defaults.ParticleCommand;
+import cn.nukkit.command.defaults.PluginsCommand;
+import cn.nukkit.command.defaults.ReloadCommand;
+import cn.nukkit.command.defaults.SaveCommand;
+import cn.nukkit.command.defaults.SaveOffCommand;
+import cn.nukkit.command.defaults.SaveOnCommand;
+import cn.nukkit.command.defaults.SayCommand;
+import cn.nukkit.command.defaults.SeedCommand;
+import cn.nukkit.command.defaults.SetWorldSpawnCommand;
+import cn.nukkit.command.defaults.SpawnpointCommand;
+import cn.nukkit.command.defaults.StatusCommand;
+import cn.nukkit.command.defaults.StopCommand;
+import cn.nukkit.command.defaults.TeleportCommand;
+import cn.nukkit.command.defaults.TellCommand;
+import cn.nukkit.command.defaults.TimeCommand;
+import cn.nukkit.command.defaults.TimingsCommand;
+import cn.nukkit.command.defaults.TitleCommand;
+import cn.nukkit.command.defaults.VanillaCommand;
+import cn.nukkit.command.defaults.VersionCommand;
+import cn.nukkit.command.defaults.WeatherCommand;
+import cn.nukkit.command.defaults.WhitelistCommand;
+import cn.nukkit.command.defaults.XpCommand;
+import cn.nukkit.command.simple.Arguments;
+import cn.nukkit.command.simple.CommandParameters;
+import cn.nukkit.command.simple.CommandPermission;
+import cn.nukkit.command.simple.ForbidConsole;
+import cn.nukkit.command.simple.Parameters;
+import cn.nukkit.command.simple.SimpleCommand;
 import cn.nukkit.lang.TranslationContainer;
 import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.TextFormat;
 import cn.nukkit.utils.Utils;
-import com.google.common.collect.Sets;
-
-import java.lang.reflect.Method;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * author: MagicDroidX
@@ -27,12 +78,15 @@ public class SimpleCommandMap implements CommandMap {
 
     private final Server server;
 
-    public SimpleCommandMap(Server server) {
+	private final FileLayout fs;
+
+    public SimpleCommandMap(final Server server, final FileLayout fs) throws IOException {
         this.server = server;
+        this.fs = Objects.requireNonNull(fs);
         this.setDefaultCommands();
     }
 
-    private void setDefaultCommands() {
+    private void setDefaultCommands() throws IOException {
         this.register("nukkit", new VersionCommand("version"));
         this.register("nukkit", new PluginsCommand("plugins"));
         this.register("nukkit", new SeedCommand("seed"));
@@ -41,7 +95,7 @@ public class SimpleCommandMap implements CommandMap {
         this.register("nukkit", new TellCommand("tell"));
         this.register("nukkit", new DefaultGamemodeCommand("defaultgamemode"));
         this.register("nukkit", new BanCommand("ban"));
-        this.register("nukkit", new BanIpCommand("ban-ip"));
+        this.register("nukkit", new BanIpCommand("ban-ip", fs.data().subStore("players")));
         this.register("nukkit", new BanListCommand("banlist"));
         this.register("nukkit", new PardonCommand("pardon"));
         this.register("nukkit", new PardonIpCommand("pardon-ip"));
@@ -75,38 +129,38 @@ public class SimpleCommandMap implements CommandMap {
 //        if ((boolean) this.server.getConfig("debug.commands", false)) {
         this.register("nukkit", new StatusCommand("status"));
         this.register("nukkit", new GarbageCollectorCommand("gc"));
-        this.register("nukkit", new TimingsCommand("timings"));
-        this.register("nukkit", new DebugPasteCommand("debugpaste"));
+        this.register("nukkit", new TimingsCommand("timings", fs.data().subStore("timings")));
+        this.register("nukkit", new DebugPasteCommand("debugpaste", fs.config(), fs.data()));
         //this.register("nukkit", new DumpMemoryCommand("dumpmemory"));
 //        }
     }
 
     @Override
-    public void registerAll(String fallbackPrefix, List<? extends Command> commands) {
-        for (Command command : commands) {
+    public void registerAll(final String fallbackPrefix, final List<? extends Command> commands) {
+        for (final Command command : commands) {
             this.register(fallbackPrefix, command);
         }
     }
 
     @Override
-    public boolean register(String fallbackPrefix, Command command) {
+    public boolean register(final String fallbackPrefix, final Command command) {
         return this.register(fallbackPrefix, command, null);
     }
 
     @Override
-    public boolean register(String fallbackPrefix, Command command, String label) {
+    public boolean register(String fallbackPrefix, final Command command, String label) {
         if (label == null) {
             label = command.getName();
         }
         label = label.trim().toLowerCase();
         fallbackPrefix = fallbackPrefix.trim().toLowerCase();
 
-        boolean registered = this.registerAlias(command, false, fallbackPrefix, label);
+        final boolean registered = this.registerAlias(command, false, fallbackPrefix, label);
 
-        List<String> aliases = new ArrayList<>(Arrays.asList(command.getAliases()));
+        final List<String> aliases = new ArrayList<>(Arrays.asList(command.getAliases()));
 
-        for (Iterator<String> iterator = aliases.iterator(); iterator.hasNext(); ) {
-            String alias = iterator.next();
+        for (final Iterator<String> iterator = aliases.iterator(); iterator.hasNext(); ) {
+            final String alias = iterator.next();
             if (!this.registerAlias(command, true, fallbackPrefix, alias)) {
                 iterator.remove();
             }
@@ -123,19 +177,19 @@ public class SimpleCommandMap implements CommandMap {
     }
 
     @Override
-    public void registerSimpleCommands(Object object) {
-        for (Method method : object.getClass().getDeclaredMethods()) {
-            cn.nukkit.command.simple.Command def = method.getAnnotation(cn.nukkit.command.simple.Command.class);
+    public void registerSimpleCommands(final Object object) {
+        for (final Method method : object.getClass().getDeclaredMethods()) {
+            final cn.nukkit.command.simple.Command def = method.getAnnotation(cn.nukkit.command.simple.Command.class);
             if (def != null) {
-                SimpleCommand sc = new SimpleCommand(object, method, def.name(), def.description(), def.usageMessage(), def.aliases());
+                final SimpleCommand sc = new SimpleCommand(object, method, def.name(), def.description(), def.usageMessage(), def.aliases());
 
-                Arguments args = method.getAnnotation(Arguments.class);
+                final Arguments args = method.getAnnotation(Arguments.class);
                 if (args != null) {
                     sc.setMaxArgs(args.max());
                     sc.setMinArgs(args.min());
                 }
 
-                CommandPermission perm = method.getAnnotation(CommandPermission.class);
+                final CommandPermission perm = method.getAnnotation(CommandPermission.class);
                 if (perm != null) {
                     sc.setPermission(perm.value());
                 }
@@ -144,9 +198,9 @@ public class SimpleCommandMap implements CommandMap {
                     sc.setForbidConsole(true);
                 }
 
-                CommandParameters commandParameters = method.getAnnotation(CommandParameters.class);
+                final CommandParameters commandParameters = method.getAnnotation(CommandParameters.class);
                 if (commandParameters != null) {
-                    Map<String, CommandParameter[]> map = Arrays.stream(commandParameters.parameters())
+                    final Map<String, CommandParameter[]> map = Arrays.stream(commandParameters.parameters())
                             .collect(Collectors.toMap(Parameters::name, parameters -> Arrays.stream(parameters.parameters())
                                     .map(parameter -> new CommandParameter(parameter.name(), parameter.type(), parameter.optional()))
                                     .distinct()
@@ -160,13 +214,13 @@ public class SimpleCommandMap implements CommandMap {
         }
     }
 
-    private boolean registerAlias(Command command, boolean isAlias, String fallbackPrefix, String label) {
+    private boolean registerAlias(final Command command, final boolean isAlias, final String fallbackPrefix, final String label) {
         this.knownCommands.put(fallbackPrefix + ":" + label, command);
 
         //if you're registering a command alias that is already registered, then return false
-        boolean alreadyRegistered = this.knownCommands.containsKey(label);
-        Command existingCommand = this.knownCommands.get(label);
-        boolean existingCommandIsNotVanilla = alreadyRegistered && !(existingCommand instanceof VanillaCommand);
+        final boolean alreadyRegistered = this.knownCommands.containsKey(label);
+        final Command existingCommand = this.knownCommands.get(label);
+        final boolean existingCommandIsNotVanilla = alreadyRegistered && !(existingCommand instanceof VanillaCommand);
         //basically, if we're an alias and it's already registered, or we're a vanilla command, then we can't override it
         if ((command instanceof VanillaCommand || isAlias) && alreadyRegistered && existingCommandIsNotVanilla) {
             return false;
@@ -187,10 +241,10 @@ public class SimpleCommandMap implements CommandMap {
         }
 
         // Then we need to check if there isn't any command conflicts with vanilla commands
-        ArrayList<String> toRemove = new ArrayList<String>();
+        final ArrayList<String> toRemove = new ArrayList<String>();
 
-        for (Entry<String, Command> entry : knownCommands.entrySet()) {
-            Command cmd = entry.getValue();
+        for (final Entry<String, Command> entry : knownCommands.entrySet()) {
+            final Command cmd = entry.getValue();
             if (cmd.getLabel().equalsIgnoreCase(command.getLabel()) && !cmd.equals(command)) { // If the new command conflicts... (But if it isn't the same command)
                 if (cmd instanceof VanillaCommand) { // And if the old command is a vanilla command...
                     // Remove it!
@@ -200,7 +254,7 @@ public class SimpleCommandMap implements CommandMap {
         }
 
         // Now we loop the toRemove list to remove the command conflicts from the knownCommands map
-        for (String cmd : toRemove) {
+        for (final String cmd : toRemove) {
             knownCommands.remove(cmd);
         }
 
@@ -209,9 +263,9 @@ public class SimpleCommandMap implements CommandMap {
         return true;
     }
 
-    private ArrayList<String> parseArguments(String cmdLine) {
-        StringBuilder sb = new StringBuilder(cmdLine);
-        ArrayList<String> args = new ArrayList<>();
+    private ArrayList<String> parseArguments(final String cmdLine) {
+        final StringBuilder sb = new StringBuilder(cmdLine);
+        final ArrayList<String> args = new ArrayList<>();
         boolean notQuoted = true;
         int start = 0;
 
@@ -222,7 +276,7 @@ public class SimpleCommandMap implements CommandMap {
             }
 
             if (sb.charAt(i) == ' ' && notQuoted) {
-                String arg = sb.substring(start, i);
+                final String arg = sb.substring(start, i);
                 if (!arg.isEmpty()) {
                     args.add(arg);
                 }
@@ -234,7 +288,7 @@ public class SimpleCommandMap implements CommandMap {
             }
         }
 
-        String arg = sb.substring(start);
+        final String arg = sb.substring(start);
         if (!arg.isEmpty()) {
             args.add(arg);
         }
@@ -242,27 +296,29 @@ public class SimpleCommandMap implements CommandMap {
     }
 
     @Override
-    public boolean dispatch(CommandSender sender, String cmdLine) {
-        ArrayList<String> parsed = parseArguments(cmdLine);
+    public boolean dispatch(final CommandSender sender, final String cmdLine) {
+        final ArrayList<String> parsed = parseArguments(cmdLine);
+        MainLogger.getLogger().debug("Dispatching command "+cmdLine);
         if (parsed.size() == 0) {
             return false;
         }
 
-        String sentCommandLabel = parsed.remove(0).toLowerCase();
-        String[] args = parsed.toArray(new String[parsed.size()]);
-        Command target = this.getCommand(sentCommandLabel);
+        final String sentCommandLabel = parsed.remove(0).toLowerCase();
+        final String[] args = parsed.toArray(new String[parsed.size()]);
+        final Command target = this.getCommand(sentCommandLabel);
 
         if (target == null) {
+        	MainLogger.getLogger().debug(String.format("No target for command %s", sentCommandLabel));
             return false;
         }
 
         target.timing.startTiming();
         try {
             target.execute(sender, sentCommandLabel, args);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             sender.sendMessage(new TranslationContainer(TextFormat.RED + "%commands.generic.exception"));
             this.server.getLogger().critical(this.server.getLanguage().translateString("nukkit.command.exception", cmdLine, target.toString(), Utils.getExceptionMessage(e)));
-            MainLogger logger = sender.getServer().getLogger();
+            final MainLogger logger = sender.getServer().getLogger();
             if (logger != null) {
                 logger.logException(e);
             }
@@ -273,8 +329,8 @@ public class SimpleCommandMap implements CommandMap {
     }
 
     @Override
-    public void clearCommands() {
-        for (Command command : this.knownCommands.values()) {
+    public void clearCommands() throws IOException {
+        for (final Command command : this.knownCommands.values()) {
             command.unregister(this);
         }
         this.knownCommands.clear();
@@ -282,7 +338,7 @@ public class SimpleCommandMap implements CommandMap {
     }
 
     @Override
-    public Command getCommand(String name) {
+    public Command getCommand(final String name) {
         if (this.knownCommands.containsKey(name)) {
             return this.knownCommands.get(name);
         }
@@ -294,21 +350,21 @@ public class SimpleCommandMap implements CommandMap {
     }
 
     public void registerServerAliases() {
-        Map<String, List<String>> values = this.server.getCommandAliases();
-        for (Map.Entry<String, List<String>> entry : values.entrySet()) {
-            String alias = entry.getKey();
-            List<String> commandStrings = entry.getValue();
+        final Map<String, List<String>> values = this.server.getCommandAliases();
+        for (final Map.Entry<String, List<String>> entry : values.entrySet()) {
+            final String alias = entry.getKey();
+            final List<String> commandStrings = entry.getValue();
             if (alias.contains(" ") || alias.contains(":")) {
                 this.server.getLogger().warning(this.server.getLanguage().translateString("nukkit.command.alias.illegal", alias));
                 continue;
             }
-            List<String> targets = new ArrayList<>();
+            final List<String> targets = new ArrayList<>();
 
             String bad = "";
 
-            for (String commandString : commandStrings) {
-                String[] args = commandString.split(" ");
-                Command command = this.getCommand(args[0]);
+            for (final String commandString : commandStrings) {
+                final String[] args = commandString.split(" ");
+                final Command command = this.getCommand(args[0]);
 
                 if (command == null) {
                     if (bad.length() > 0) {

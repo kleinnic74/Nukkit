@@ -1849,7 +1849,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
             }
         }
 
-        CompoundTag nbt = this.server.getOfflinePlayerData(this.username);
+        CompoundTag nbt = this.server.loadOrCreateOfflinePlayerData(this.username);
         if (nbt == null) {
             this.close(this.getLeaveMessage(), "Invalid data");
 
@@ -2142,7 +2142,6 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                             }
                         }
                     };
-
                     this.server.getScheduler().scheduleAsyncTask(this.preLoginEventTask);
 
                     this.processLogin();

@@ -1,18 +1,48 @@
 package cn.nukkit.raknet.server;
 
-import cn.nukkit.raknet.RakNet;
-import cn.nukkit.raknet.protocol.EncapsulatedPacket;
-import cn.nukkit.raknet.protocol.Packet;
-import cn.nukkit.raknet.protocol.packet.*;
-import cn.nukkit.utils.Binary;
-import cn.nukkit.utils.ThreadedLogger;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.socket.DatagramPacket;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import cn.nukkit.raknet.RakNet;
+import cn.nukkit.raknet.protocol.EncapsulatedPacket;
+import cn.nukkit.raknet.protocol.Packet;
+import cn.nukkit.raknet.protocol.packet.ACK;
+import cn.nukkit.raknet.protocol.packet.ADVERTISE_SYSTEM;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_0;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_1;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_2;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_3;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_4;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_5;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_6;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_7;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_8;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_9;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_A;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_B;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_C;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_D;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_E;
+import cn.nukkit.raknet.protocol.packet.DATA_PACKET_F;
+import cn.nukkit.raknet.protocol.packet.NACK;
+import cn.nukkit.raknet.protocol.packet.OPEN_CONNECTION_REPLY_1;
+import cn.nukkit.raknet.protocol.packet.OPEN_CONNECTION_REPLY_2;
+import cn.nukkit.raknet.protocol.packet.OPEN_CONNECTION_REQUEST_1;
+import cn.nukkit.raknet.protocol.packet.OPEN_CONNECTION_REQUEST_2;
+import cn.nukkit.raknet.protocol.packet.UNCONNECTED_PING;
+import cn.nukkit.raknet.protocol.packet.UNCONNECTED_PING_OPEN_CONNECTIONS;
+import cn.nukkit.raknet.protocol.packet.UNCONNECTED_PONG;
+import cn.nukkit.utils.Binary;
+import cn.nukkit.utils.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.socket.DatagramPacket;
 
 /**
  * author: MagicDroidX
@@ -22,8 +52,6 @@ public class SessionManager {
     protected final Packet.PacketFactory[] packetPool = new Packet.PacketFactory[256];
 
     protected final RakNetServer server;
-
-    protected final UDPServerSocket socket;
 
     protected int receiveBytes = 0;
     protected int sendBytes = 0;
@@ -48,32 +76,28 @@ public class SessionManager {
 
     protected String currentSource = "";
 
-    public SessionManager(RakNetServer server, UDPServerSocket socket) throws Exception {
+	private final UDPServerSocket socket;
+
+    public SessionManager(final RakNetServer server, final UDPServerSocket socket)  {
         this.server = server;
         this.socket = socket;
         this.registerPackets();
 
         this.serverId = new Random().nextLong();
-
-        this.run();
     }
 
     public int getPort() {
         return this.server.port;
     }
 
-    public ThreadedLogger getLogger() {
+    public Logger getLogger() {
         return this.server.getLogger();
     }
 
     public void run() throws Exception {
-        this.tickProcessor();
-    }
-
-    private void tickProcessor() throws Exception {
         this.lastMeasure = System.currentTimeMillis();
         while (!this.shutdown) {
-            long start = System.currentTimeMillis();
+            final long start = System.currentTimeMillis();
             int max = 5000;
             while (max > 0) {
                 try {
@@ -81,7 +105,7 @@ public class SessionManager {
                         break;
                     }
                     --max;
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     if (!currentSource.isEmpty()) {
                         this.blockAddress(currentSource);
                     }
@@ -90,11 +114,11 @@ public class SessionManager {
             }
             while (this.receiveStream()) ;
 
-            long time = System.currentTimeMillis() - start;
+            final long time = System.currentTimeMillis() - start;
             if (time < 50) {
                 try {
                     Thread.sleep(50 - time);
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                     //ignore
                 }
             }
@@ -103,13 +127,13 @@ public class SessionManager {
     }
 
     private void tick() throws Exception {
-        long time = System.currentTimeMillis();
-        for (Session session : new ArrayList<>(this.sessions.values())) {
+        final long time = System.currentTimeMillis();
+        for (final Session session : new ArrayList<>(this.sessions.values())) {
             session.update(time);
         }
 
-        for (String address : this.ipSec.keySet()) {
-            int count = this.ipSec.get(address);
+        for (final String address : this.ipSec.keySet()) {
+            final int count = this.ipSec.get(address);
             if (count >= this.packetLimit) {
                 this.blockAddress(address);
             }
@@ -117,16 +141,16 @@ public class SessionManager {
         this.ipSec.clear();
 
         if ((this.ticks & 0b1111) == 0) {
-            double diff = Math.max(5d, (double) time - this.lastMeasure);
+            final double diff = Math.max(5d, (double) time - this.lastMeasure);
             this.streamOption("bandwidth", this.sendBytes / diff + ";" + this.receiveBytes / diff);
             this.lastMeasure = time;
             this.sendBytes = 0;
             this.receiveBytes = 0;
 
             if (!this.block.isEmpty()) {
-                long now = System.currentTimeMillis();
-                for (String address : new ArrayList<>(this.block.keySet())) {
-                    long timeout = this.block.get(address);
+                final long now = System.currentTimeMillis();
+                for (final String address : new ArrayList<>(this.block.keySet())) {
+                    final long timeout = this.block.get(address);
                     if (timeout <= now) {
                         this.block.remove(address);
                         this.getLogger().notice("Unblocked " + address);
@@ -141,11 +165,11 @@ public class SessionManager {
     }
 
     private boolean receivePacket() throws Exception {
-        DatagramPacket datagramPacket = this.socket.readPacket();
+        final DatagramPacket datagramPacket = socket.readPacket();
         if (datagramPacket != null) {
             // Check this early
             try {
-                String source = datagramPacket.sender().getHostString();
+                final String source = datagramPacket.sender().getHostString();
                 currentSource = source; //in order to block address
                 if (this.block.containsKey(source)) {
                     return true;
@@ -157,19 +181,19 @@ public class SessionManager {
                     this.ipSec.put(source, 1);
                 }
 
-                ByteBuf byteBuf = datagramPacket.content();
+                final ByteBuf byteBuf = datagramPacket.content();
                 if (byteBuf.readableBytes() == 0) {
                     // Exit early to process another packet
                     return true;
                 }
-                byte[] buffer = new byte[byteBuf.readableBytes()];
+                final byte[] buffer = new byte[byteBuf.readableBytes()];
                 byteBuf.readBytes(buffer);
-                int len = buffer.length;
-                int port = datagramPacket.sender().getPort();
+                final int len = buffer.length;
+                final int port = datagramPacket.sender().getPort();
 
                 this.receiveBytes += len;
 
-                byte pid = buffer[0];
+                final byte pid = buffer[0];
 
                 if (pid == UNCONNECTED_PONG.ID) {
                     return false;
@@ -185,7 +209,7 @@ public class SessionManager {
                     packet.buffer = buffer;
                     packet.decode();
 
-                    UNCONNECTED_PONG pk = new UNCONNECTED_PONG();
+                    final UNCONNECTED_PONG pk = new UNCONNECTED_PONG();
                     pk.serverID = this.getID();
                     pk.pingID = ((UNCONNECTED_PING) packet).pingID;
                     pk.serverName = this.getName();
@@ -204,23 +228,23 @@ public class SessionManager {
         return false;
     }
 
-    public void sendPacket(Packet packet, String dest, int port) throws IOException {
+    public void sendPacket(final Packet packet, final String dest, final int port) throws IOException {
         packet.encode();
-        this.sendBytes += this.socket.writePacket(packet.buffer, dest, port);
+        this.sendBytes += socket.writePacket(packet.buffer, dest, port);
     }
 
-    public void sendPacket(Packet packet, InetSocketAddress dest) throws IOException {
+    public void sendPacket(final Packet packet, final InetSocketAddress dest) throws IOException {
         packet.encode();
-        this.sendBytes += this.socket.writePacket(packet.buffer, dest);
+        this.sendBytes += socket.writePacket(packet.buffer, dest);
     }
 
-    public void streamEncapsulated(Session session, EncapsulatedPacket packet) {
+    public void streamEncapsulated(final Session session, final EncapsulatedPacket packet) {
         this.streamEncapsulated(session, packet, RakNet.PRIORITY_NORMAL);
     }
 
-    public void streamEncapsulated(Session session, EncapsulatedPacket packet, int flags) {
-        String id = session.getAddress() + ":" + session.getPort();
-        byte[] buffer = Binary.appendBytes(
+    public void streamEncapsulated(final Session session, final EncapsulatedPacket packet, final int flags) {
+        final String id = session.getAddress() + ":" + session.getPort();
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_ENCAPSULATED,
                 new byte[]{(byte) (id.length() & 0xff)},
                 id.getBytes(StandardCharsets.UTF_8),
@@ -230,8 +254,8 @@ public class SessionManager {
         this.server.pushThreadToMainPacket(buffer);
     }
 
-    public void streamRAW(String address, int port, byte[] payload) {
-        byte[] buffer = Binary.appendBytes(
+    public void streamRAW(final String address, final int port, final byte[] payload) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_RAW,
                 new byte[]{(byte) (address.length() & 0xff)},
                 address.getBytes(StandardCharsets.UTF_8),
@@ -241,8 +265,8 @@ public class SessionManager {
         this.server.pushThreadToMainPacket(buffer);
     }
 
-    protected void streamClose(String identifier, String reason) {
-        byte[] buffer = Binary.appendBytes(
+    protected void streamClose(final String identifier, final String reason) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_CLOSE_SESSION,
                 new byte[]{(byte) (identifier.length() & 0xff)},
                 identifier.getBytes(StandardCharsets.UTF_8),
@@ -252,8 +276,8 @@ public class SessionManager {
         this.server.pushThreadToMainPacket(buffer);
     }
 
-    protected void streamInvalid(String identifier) {
-        byte[] buffer = Binary.appendBytes(
+    protected void streamInvalid(final String identifier) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_INVALID_SESSION,
                 new byte[]{(byte) (identifier.length() & 0xff)},
                 identifier.getBytes(StandardCharsets.UTF_8)
@@ -261,9 +285,9 @@ public class SessionManager {
         this.server.pushThreadToMainPacket(buffer);
     }
 
-    protected void streamOpen(Session session) {
-        String identifier = session.getAddress() + ":" + session.getPort();
-        byte[] buffer = Binary.appendBytes(
+    protected void streamOpen(final Session session) {
+        final String identifier = session.getAddress() + ":" + session.getPort();
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_OPEN_SESSION,
                 new byte[]{(byte) (identifier.length() & 0xff)},
                 identifier.getBytes(StandardCharsets.UTF_8),
@@ -275,8 +299,8 @@ public class SessionManager {
         this.server.pushThreadToMainPacket(buffer);
     }
 
-    protected void streamACK(String identifier, int identifierACK) {
-        byte[] buffer = Binary.appendBytes(
+    protected void streamACK(final String identifier, final int identifierACK) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_ACK_NOTIFICATION,
                 new byte[]{(byte) (identifier.length() & 0xff)},
                 identifier.getBytes(StandardCharsets.UTF_8),
@@ -285,8 +309,8 @@ public class SessionManager {
         this.server.pushThreadToMainPacket(buffer);
     }
 
-    protected void streamOption(String name, String value) {
-        byte[] buffer = Binary.appendBytes(
+    protected void streamOption(final String name, final String value) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_SET_OPTION,
                 new byte[]{(byte) (name.length() & 0xff)},
                 name.getBytes(StandardCharsets.UTF_8),
@@ -298,9 +322,9 @@ public class SessionManager {
     private void checkSessions() {
         int size = this.sessions.size();
         if (size > 4096) {
-            List<String> keyToRemove = new ArrayList<>();
-            for (String i : this.sessions.keySet()) {
-                Session s = this.sessions.get(i);
+            final List<String> keyToRemove = new ArrayList<>();
+            for (final String i : this.sessions.keySet()) {
+                final Session s = this.sessions.get(i);
                 if (s.isTemporal()) {
                     keyToRemove.add(i);
                     size--;
@@ -310,16 +334,16 @@ public class SessionManager {
                 }
             }
 
-            for (String i : keyToRemove) {
+            for (final String i : keyToRemove) {
                 this.sessions.remove(i);
             }
         }
     }
 
     public boolean receiveStream() throws Exception {
-        byte[] packet = this.server.readMainToThreadPacket();
+        final byte[] packet = this.server.readMainToThreadPacket();
         if (packet != null && packet.length > 0) {
-            byte id = packet[0];
+            final byte id = packet[0];
             int offset = 1;
             switch (id) {
                 case RakNet.PACKET_ENCAPSULATED:
@@ -327,8 +351,8 @@ public class SessionManager {
                     String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                     offset += len;
                     if (this.sessions.containsKey(identifier)) {
-                        byte flags = packet[offset++];
-                        byte[] buffer = Binary.subBytes(packet, offset);
+                        final byte flags = packet[offset++];
+                        final byte[] buffer = Binary.subBytes(packet, offset);
                         this.sessions.get(identifier).addEncapsulatedToQueue(EncapsulatedPacket.fromBinary(buffer, true), flags);
                     } else {
                         this.streamInvalid(identifier);
@@ -338,10 +362,10 @@ public class SessionManager {
                     len = packet[offset++];
                     String address = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                     offset += len;
-                    int port = Binary.readShort(Binary.subBytes(packet, offset, 2));
+                    final int port = Binary.readShort(Binary.subBytes(packet, offset, 2));
                     offset += 2;
-                    byte[] payload = Binary.subBytes(packet, offset);
-                    this.socket.writePacket(payload, address, port);
+                    final byte[] payload = Binary.subBytes(packet, offset);
+                    socket.writePacket(payload, address, port);
                     break;
                 case RakNet.PACKET_CLOSE_SESSION:
                     len = packet[offset++];
@@ -361,9 +385,9 @@ public class SessionManager {
                     break;
                 case RakNet.PACKET_SET_OPTION:
                     len = packet[offset++];
-                    String name = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                    final String name = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                     offset += len;
-                    String value = new String(Binary.subBytes(packet, offset), StandardCharsets.UTF_8);
+                    final String value = new String(Binary.subBytes(packet, offset), StandardCharsets.UTF_8);
                     switch (name) {
                         case "name":
                             this.name = value;
@@ -380,7 +404,7 @@ public class SessionManager {
                     len = packet[offset++];
                     address = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                     offset += len;
-                    int timeout = Binary.readInt(Binary.subBytes(packet, offset, 4));
+                    final int timeout = Binary.readInt(Binary.subBytes(packet, offset, 4));
                     this.blockAddress(address, timeout);
                     break;
                 case RakNet.PACKET_UNBLOCK_ADDRESS:
@@ -389,11 +413,11 @@ public class SessionManager {
                     this.unblockAddress(address);
                     break;
                 case RakNet.PACKET_SHUTDOWN:
-                    for (Session session : new ArrayList<>(this.sessions.values())) {
+                    for (final Session session : new ArrayList<>(this.sessions.values())) {
                         this.removeSession(session);
                     }
 
-                    this.socket.close();
+                    socket.close();
                     this.shutdown = true;
                     break;
                 case RakNet.PACKET_EMERGENCY_SHUTDOWN:
@@ -407,11 +431,11 @@ public class SessionManager {
         return false;
     }
 
-    public void blockAddress(String address) {
+    public void blockAddress(final String address) {
         this.blockAddress(address, 300);
     }
 
-    public void blockAddress(String address, int timeout) {
+    public void blockAddress(final String address, final int timeout) {
         long finalTime = System.currentTimeMillis() + timeout * 1000;
         if (!this.block.containsKey(address) || timeout == -1) {
             if (timeout == -1) {
@@ -425,15 +449,15 @@ public class SessionManager {
         }
     }
 
-    public void unblockAddress(String address) {
+    public void unblockAddress(final String address) {
         this.block.remove(address);
     }
 
-    public Session getSession(String ip, int port) {
-        String id = ip + ":" + port;
+    public Session getSession(final String ip, final int port) {
+        final String id = ip + ":" + port;
         if (!this.sessions.containsKey(id)) {
             this.checkSessions();
-            Session session = new Session(this, ip, port);
+            final Session session = new Session(this, ip, port);
             this.sessions.put(id, session);
 
             return session;
@@ -442,12 +466,12 @@ public class SessionManager {
         return this.sessions.get(id);
     }
 
-    public void removeSession(Session session) throws Exception {
+    public void removeSession(final Session session) throws Exception {
         this.removeSession(session, "unknown");
     }
 
-    public void removeSession(Session session, String reason) throws Exception {
-        String id = session.getAddress() + ":" + session.getPort();
+    public void removeSession(final Session session, final String reason) throws Exception {
+        final String id = session.getAddress() + ":" + session.getPort();
         if (this.sessions.containsKey(id)) {
             this.sessions.get(id).close();
             this.sessions.remove(id);
@@ -455,11 +479,11 @@ public class SessionManager {
         }
     }
 
-    public void openSession(Session session) {
+    public void openSession(final Session session) {
         this.streamOpen(session);
     }
 
-    public void notifyACK(Session session, int identifierACK) {
+    public void notifyACK(final Session session, final int identifierACK) {
         this.streamACK(session.getAddress() + ":" + session.getPort(), identifierACK);
     }
 
@@ -471,11 +495,11 @@ public class SessionManager {
         return this.serverId;
     }
 
-    private void registerPacket(byte id, Packet.PacketFactory factory) {
+    private void registerPacket(final byte id, final Packet.PacketFactory factory) {
         this.packetPool[id & 0xFF] = factory;
     }
 
-    public Packet getPacketFromPool(byte id) {
+    public Packet getPacketFromPool(final byte id) {
         return this.packetPool[id & 0xFF].create();
     }
 

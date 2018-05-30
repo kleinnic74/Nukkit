@@ -1,14 +1,19 @@
 package cn.nukkit;
 
-import cn.nukkit.command.CommandReader;
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import cn.nukkit.command.Console;
 import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.utils.LogLevel;
 import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.ServerKiller;
-
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
+import cn.nukkit.utils.concurrent.NamedExecutorService;
+import cn.nukkit.utils.logging.ConsoleLogBackend;
+import cn.nukkit.utils.logging.FileLogBackend;
 
 /**
  * `_   _       _    _    _ _
@@ -45,10 +50,11 @@ public class Nukkit {
     public static boolean shortTitle = false;
     public static int DEBUG = 1;
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
+        final MainLogger logger = MainLogger.getLogger();
 
         //Shorter title for windows 8/2012
-        String osName = System.getProperty("os.name").toLowerCase();
+        final String osName = System.getProperty("os.name").toLowerCase();
         if (osName.contains("windows")) {
             if (osName.contains("windows 8") || osName.contains("2012")) {
                 shortTitle = true;
@@ -59,7 +65,7 @@ public class Nukkit {
         int index = -1;
         boolean skip = false;
         //启动参数
-        for (String arg : args) {
+        for (final String arg : args) {
             index++;
             if (skip) {
                 skip = false;
@@ -75,29 +81,43 @@ public class Nukkit {
                 case "-v":
                     skip = true;
                     try {
-                        String levelName = args[index + 1];
-                        Set<String> levelNames = Arrays.stream(LogLevel.values()).map(level -> level.name().toLowerCase()).collect(Collectors.toSet());
+                        final String levelName = args[index + 1];
+                        final Set<String> levelNames = Arrays.stream(LogLevel.values()).map(level -> level.name().toLowerCase()).collect(Collectors.toSet());
                         if (!levelNames.contains(levelName.toLowerCase())) {
                             System.out.printf("'%s' is not a valid log level, using the default\n", levelName);
                             continue;
                         }
                         logLevel = Arrays.stream(LogLevel.values()).filter(level -> level.name().equalsIgnoreCase(levelName)).findAny().orElse(LogLevel.DEFAULT_LEVEL);
-                    } catch (ArrayIndexOutOfBoundsException e) {
+                    } catch (final ArrayIndexOutOfBoundsException e) {
                         System.out.println("You must enter the requested log level, using the default\n");
                     }
 
             }
         }
 
-        MainLogger logger = new MainLogger(DATA_PATH + "server.log", logLevel);
-        System.out.printf("Using log level '%s'\n", logLevel);
 
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {			
+			@Override
+			public void uncaughtException(final Thread t, final Throwable e) {
+				System.err.format("Uncaught exception in Thread '%s': %s%n", t.getName(), e);
+				System.exit(1);
+			}
+		});
         try {
+        	final NamedExecutorService executor = new NamedExecutorService();
+        	executor.launch("Logger", logger);
+        	logger.setLevel(logLevel);
+        	final Console console = new Console();
+        	logger.addBackend(new ConsoleLogBackend(console));
+        	final FileLayout fs = FileLayout.build(System.getProperty("user.dir"));
+        	final Path logFile = fs.data().filePath("server.log");
+        	final Path oldLogs = fs.data().subStore("logs").basepath();
+        	logger.addBackend(new FileLogBackend(logFile, oldLogs));
             if (ANSI) {
                 System.out.print((char) 0x1b + "]0;Starting Nukkit Server For Minecraft: PE" + (char) 0x07);
             }
-            new Server(logger, PATH, DATA_PATH, PLUGIN_PATH);
-        } catch (Exception e) {
+            new Server(logger, console,fs, executor);
+        } catch (final Exception e) {
             logger.logException(e);
         }
 
@@ -106,21 +126,11 @@ public class Nukkit {
         }
         logger.info("Stopping other threads");
 
-        for (Thread thread : java.lang.Thread.getAllStackTraces().keySet()) {
-            if (!(thread instanceof InterruptibleThread)) {
-                continue;
-            }
-            logger.debug("Stopping " + thread.getClass().getSimpleName() + " thread");
-            if (thread.isAlive()) {
-                thread.interrupt();
-            }
-        }
 
-        ServerKiller killer = new ServerKiller(8);
+        final ServerKiller killer = new ServerKiller(8);
         killer.start();
 
         logger.shutdown();
-        CommandReader.getInstance().removePromptLine();
 
         if (ANSI) {
             System.out.print((char) 0x1b + "]0;Server Stopped" + (char) 0x07);

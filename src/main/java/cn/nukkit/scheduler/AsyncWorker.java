@@ -1,14 +1,12 @@
 package cn.nukkit.scheduler;
 
-import cn.nukkit.InterruptibleThread;
-
 import java.util.LinkedList;
 
 /**
  * author: MagicDroidX
  * Nukkit Project
  */
-public class AsyncWorker extends Thread implements InterruptibleThread {
+public class AsyncWorker extends Thread {
     private final LinkedList<AsyncTask> stack = new LinkedList<>();
 
     public AsyncWorker() {

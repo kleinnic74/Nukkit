@@ -26,7 +26,5 @@ public interface SourceInterface {
 
     boolean process();
 
-    void shutdown();
-
     void emergencyShutdown();
 }

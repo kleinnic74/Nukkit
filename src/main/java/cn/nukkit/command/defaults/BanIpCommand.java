@@ -1,6 +1,7 @@
 package cn.nukkit.command.defaults;
 
 import cn.nukkit.Player;
+import cn.nukkit.FileLayout.DataStore;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.command.data.CommandParameter;
@@ -13,6 +14,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -21,7 +23,9 @@ import java.util.regex.Pattern;
  */
 public class BanIpCommand extends VanillaCommand {
 
-    public BanIpCommand(String name) {
+    private DataStore playersDb;
+
+	public BanIpCommand(String name, DataStore playersDb) {
         super(name, "%nukkit.command.ban.ip.description", "%commands.banip.usage");
         this.setPermission("nukkit.command.ban.ip");
         this.setAliases(new String[]{"banip"});
@@ -30,6 +34,7 @@ public class BanIpCommand extends VanillaCommand {
                 new CommandParameter("player", CommandParameter.ARG_TYPE_TARGET, false),
                 new CommandParameter("reason", true)
         });
+        this.playersDb = Objects.requireNonNull(playersDb);
     }
 
     @Override
@@ -66,8 +71,7 @@ public class BanIpCommand extends VanillaCommand {
                 Command.broadcastCommandMessage(sender, new TranslationContainer("commands.banip.success.players", new String[]{player.getAddress(), player.getName()}));
             } else {
                 String name = value.toLowerCase();
-                String path = sender.getServer().getDataPath() + "players/";
-                File file = new File(path + name + ".dat");
+                File file = playersDb.file(name+".dat");
                 CompoundTag nbt = null;
                 if (file.exists()) {
                     try {

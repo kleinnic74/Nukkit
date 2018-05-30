@@ -36,15 +36,15 @@ abstract public class BaseRegionLoader {
             this.x = regionX;
             this.z = regionZ;
             this.levelProvider = level;
-            String filePath = this.levelProvider.getPath() + "region/r." + regionX + "." + regionZ + "." + ext;
-            File file = new File(filePath);
+            File regionDir = new File(levelProvider.getPath(), "region");
+            File file = new File(regionDir, "r." + regionX + "." + regionZ + "." + ext);
             boolean exists = file.exists();
             if (!exists) {
                 file.createNewFile();
             }
             // TODO: buffering is a temporary solution to chunk reading/writing being poorly optimized
             //  - need to fix the code where it reads single bytes at a time from disk
-            this.randomAccessFile = new RandomAccessFile(filePath, "rw");
+            this.randomAccessFile = new RandomAccessFile(file, "rw");
             if (!exists) {
                 this.createBlank();
             } else {

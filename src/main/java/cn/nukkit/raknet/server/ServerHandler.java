@@ -1,10 +1,10 @@
 package cn.nukkit.raknet.server;
 
+import java.nio.charset.StandardCharsets;
+
 import cn.nukkit.raknet.RakNet;
 import cn.nukkit.raknet.protocol.EncapsulatedPacket;
 import cn.nukkit.utils.Binary;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  * author: MagicDroidX
@@ -16,17 +16,17 @@ public class ServerHandler {
 
     protected final ServerInstance instance;
 
-    public ServerHandler(RakNetServer server, ServerInstance instance) {
+    public ServerHandler(final RakNetServer server, final ServerInstance instance) {
         this.server = server;
         this.instance = instance;
     }
 
-    public void sendEncapsulated(String identifier, EncapsulatedPacket packet) {
+    public void sendEncapsulated(final String identifier, final EncapsulatedPacket packet) {
         this.sendEncapsulated(identifier, packet, RakNet.PRIORITY_NORMAL);
     }
 
-    public void sendEncapsulated(String identifier, EncapsulatedPacket packet, int flags) {
-        byte[] buffer = Binary.appendBytes(
+    public void sendEncapsulated(final String identifier, final EncapsulatedPacket packet, final int flags) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_ENCAPSULATED,
                 new byte[]{(byte) (identifier.length() & 0xff)},
                 identifier.getBytes(StandardCharsets.UTF_8),
@@ -36,8 +36,8 @@ public class ServerHandler {
         this.server.pushMainToThreadPacket(buffer);
     }
 
-    public void sendRaw(String address, int port, byte[] payload) {
-        byte[] buffer = Binary.appendBytes(
+    public void sendRaw(final String address, final int port, final byte[] payload) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_RAW,
                 new byte[]{(byte) (address.length() & 0xff)},
                 address.getBytes(StandardCharsets.UTF_8),
@@ -47,8 +47,8 @@ public class ServerHandler {
         this.server.pushMainToThreadPacket(buffer);
     }
 
-    public void closeSession(String identifier, String reason) {
-        byte[] buffer = Binary.appendBytes(
+    public void closeSession(final String identifier, final String reason) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_CLOSE_SESSION,
                 new byte[]{(byte) (identifier.length() & 0xff)},
                 identifier.getBytes(StandardCharsets.UTF_8),
@@ -58,8 +58,8 @@ public class ServerHandler {
         this.server.pushMainToThreadPacket(buffer);
     }
 
-    public void sendOption(String name, String value) {
-        byte[] buffer = Binary.appendBytes(
+    public void sendOption(final String name, final String value) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_SET_OPTION,
                 new byte[]{(byte) (name.length() & 0xff)},
                 name.getBytes(StandardCharsets.UTF_8),
@@ -68,8 +68,8 @@ public class ServerHandler {
         this.server.pushMainToThreadPacket(buffer);
     }
 
-    public void blockAddress(String address, int timeout) {
-        byte[] buffer = Binary.appendBytes(
+    public void blockAddress(final String address, final int timeout) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_BLOCK_ADDRESS,
                 new byte[]{(byte) (address.length() & 0xff)},
                 address.getBytes(StandardCharsets.UTF_8),
@@ -78,8 +78,8 @@ public class ServerHandler {
         this.server.pushMainToThreadPacket(buffer);
     }
 
-    public void unblockAddress(String address) {
-        byte[] buffer = Binary.appendBytes(
+    public void unblockAddress(final String address) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_UNBLOCK_ADDRESS,
                 new byte[]{(byte) (address.length() & 0xff)},
                 address.getBytes(StandardCharsets.UTF_8)
@@ -88,29 +88,15 @@ public class ServerHandler {
     }
 
     public void shutdown() {
-        this.server.pushMainToThreadPacket(new byte[]{RakNet.PACKET_SHUTDOWN});
-        this.server.shutdown();
-        synchronized (this) {
-            try {
-                this.wait(20);
-            } catch (InterruptedException e) {
-                //ignore
-            }
-        }
-        try {
-            this.server.join();
-        } catch (InterruptedException e) {
-            //ignore
-        }
+		this.server.pushMainToThreadPacket(new byte[]{RakNet.PACKET_SHUTDOWN});
     }
 
     public void emergencyShutdown() {
-        this.server.shutdown();
         this.server.pushMainToThreadPacket(new byte[]{RakNet.PACKET_EMERGENCY_SHUTDOWN});
     }
 
-    protected void invalidSession(String identifier) {
-        byte[] buffer = Binary.appendBytes(
+    protected void invalidSession(final String identifier) {
+        final byte[] buffer = Binary.appendBytes(
                 RakNet.PACKET_INVALID_SESSION,
                 new byte[]{(byte) (identifier.length() & 0xff)},
                 identifier.getBytes(StandardCharsets.UTF_8)
@@ -119,58 +105,58 @@ public class ServerHandler {
     }
 
     public boolean handlePacket() {
-        byte[] packet = this.server.readThreadToMainPacket();
+        final byte[] packet = this.server.readThreadToMainPacket();
         if (packet != null && packet.length > 0) {
-            byte id = packet[0];
+            final byte id = packet[0];
             int offset = 1;
             if (id == RakNet.PACKET_ENCAPSULATED) {
-                int len = packet[offset++];
-                String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final int len = packet[offset++];
+                final String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 offset += len;
-                int flags = packet[offset++];
-                byte[] buffer = Binary.subBytes(packet, offset);
+                final int flags = packet[offset++];
+                final byte[] buffer = Binary.subBytes(packet, offset);
                 this.instance.handleEncapsulated(identifier, EncapsulatedPacket.fromBinary(buffer, true), flags);
             } else if (id == RakNet.PACKET_RAW) {
-                int len = packet[offset++];
-                String address = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final int len = packet[offset++];
+                final String address = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 offset += len;
-                int port = Binary.readShort(Binary.subBytes(packet, offset, 2)) & 0xffff;
+                final int port = Binary.readShort(Binary.subBytes(packet, offset, 2)) & 0xffff;
                 offset += 2;
-                byte[] payload = Binary.subBytes(packet, offset);
+                final byte[] payload = Binary.subBytes(packet, offset);
                 this.instance.handleRaw(address, port, payload);
             } else if (id == RakNet.PACKET_SET_OPTION) {
-                int len = packet[offset++];
-                String name = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final int len = packet[offset++];
+                final String name = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 offset += len;
-                String value = new String(Binary.subBytes(packet, offset), StandardCharsets.UTF_8);
+                final String value = new String(Binary.subBytes(packet, offset), StandardCharsets.UTF_8);
                 this.instance.handleOption(name, value);
             } else if (id == RakNet.PACKET_OPEN_SESSION) {
                 int len = packet[offset++];
-                String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 offset += len;
                 len = packet[offset++];
-                String address = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final String address = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 offset += len;
-                int port = Binary.readShort(Binary.subBytes(packet, offset, 2)) & 0xffff;
+                final int port = Binary.readShort(Binary.subBytes(packet, offset, 2)) & 0xffff;
                 offset += 2;
-                long clientID = Binary.readLong(Binary.subBytes(packet, offset, 8));
+                final long clientID = Binary.readLong(Binary.subBytes(packet, offset, 8));
                 this.instance.openSession(identifier, address, port, clientID);
             } else if (id == RakNet.PACKET_CLOSE_SESSION) {
                 int len = packet[offset++];
-                String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 offset += len;
                 len = packet[offset++];
-                String reason = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final String reason = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 this.instance.closeSession(identifier, reason);
             } else if (id == RakNet.PACKET_INVALID_SESSION) {
-                int len = packet[offset++];
-                String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final int len = packet[offset++];
+                final String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 this.instance.closeSession(identifier, "Invalid session");
             } else if (id == RakNet.PACKET_ACK_NOTIFICATION) {
-                int len = packet[offset++];
-                String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
+                final int len = packet[offset++];
+                final String identifier = new String(Binary.subBytes(packet, offset, len), StandardCharsets.UTF_8);
                 offset += len;
-                int identifierACK = Binary.readInt(Binary.subBytes(packet, offset, 4));
+                final int identifierACK = Binary.readInt(Binary.subBytes(packet, offset, 4));
                 this.instance.notifyACK(identifier, identifierACK);
             }
             return true;

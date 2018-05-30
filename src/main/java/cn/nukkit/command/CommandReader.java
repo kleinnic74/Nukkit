@@ -1,58 +1,23 @@
 package cn.nukkit.command;
 
-import cn.nukkit.InterruptibleThread;
+import java.io.IOException;
+import java.util.Objects;
+
 import cn.nukkit.Server;
 import cn.nukkit.event.server.ServerCommandEvent;
-import cn.nukkit.utils.completers.CommandsCompleter;
-import cn.nukkit.utils.completers.PlayersCompleter;
+import cn.nukkit.utils.concurrent.StoppableRunnable;
 import co.aikar.timings.Timings;
-import jline.console.ConsoleReader;
-import jline.console.CursorBuffer;
-
-import java.io.IOException;
 
 /**
  * author: MagicDroidX
  * Nukkit
  */
-public class CommandReader extends Thread implements InterruptibleThread {
+public class CommandReader implements StoppableRunnable {
 
-    private ConsoleReader reader;
+    private Console console;
 
-    public static CommandReader instance;
-
-    private CursorBuffer stashed;
-
-    private boolean running = true;
-
-    public static CommandReader getInstance() {
-        return instance;
-    }
-
-    public CommandReader() {
-        if (instance != null) {
-            throw new RuntimeException("CommandReader is already initialized!");
-        }
-        try {
-            this.reader = new ConsoleReader();
-            reader.setPrompt("> ");
-            instance = this;
-
-            reader.addCompleter(new PlayersCompleter()); // Add player TAB completer
-            reader.addCompleter(new CommandsCompleter()); // Add command TAB completer
-        } catch (IOException e) {
-            Server.getInstance().getLogger().error("Unable to start CommandReader", e);
-        }
-        this.setName("Console");
-    }
-
-    public String readLine() {
-        try {
-            return reader.readLine();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
+    public CommandReader(Console console) {
+    	this.console = Objects.requireNonNull(console);
     }
 
     public void run() {
@@ -60,7 +25,7 @@ public class CommandReader extends Thread implements InterruptibleThread {
         String line;
 
         try {
-            while ((line = reader.readLine()) != null) {
+            while ((line = console.readLine()) != null) {
                 if (Server.getInstance().getConsoleSender() == null || Server.getInstance().getPluginManager() == null) {
                     continue;
                 }
@@ -81,46 +46,23 @@ public class CommandReader extends Thread implements InterruptibleThread {
 
                 } else if (System.currentTimeMillis() - lastLine <= 1) {
                     try {
-                        sleep(250);
+                        Thread.sleep(250);
                     } catch (InterruptedException e) {
                         Server.getInstance().getLogger().logException(e);
                     }
                 }
                 lastLine = System.currentTimeMillis();
             }
+            console.removePromptLine();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void shutdown() {
-        this.running = false;
+    public long shutdown() {
+    	console.close();
+        return 500;
     }
 
-    public synchronized void stashLine() {
-        this.stashed = reader.getCursorBuffer().copy();
-        try {
-            reader.getOutput().write("\u001b[1G\u001b[K");
-            reader.flush();
-        } catch (IOException e) {
-            // ignore
-        }
-    }
-
-    public synchronized void unstashLine() {
-        try {
-            reader.resetPromptLine("> ", this.stashed.toString(), this.stashed.cursor);
-        } catch (IOException e) {
-            // ignore
-        }
-    }
-
-    public void removePromptLine() {
-        try {
-            reader.resetPromptLine("", "", 0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
 }

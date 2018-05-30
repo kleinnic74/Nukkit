@@ -1,5 +1,10 @@
 package cn.nukkit.network;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import cn.nukkit.Nukkit;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
@@ -18,17 +23,13 @@ import cn.nukkit.utils.Binary;
 import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.Utils;
 import cn.nukkit.utils.Zlib;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import cn.nukkit.utils.concurrent.StoppableRunnable;
 
 /**
  * author: MagicDroidX
  * Nukkit Project
  */
-public class RakNetInterface implements ServerInstance, AdvancedSourceInterface {
+public class RakNetInterface implements ServerInstance, AdvancedSourceInterface, StoppableRunnable {
 
     private final Server server;
 
@@ -46,9 +47,9 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
 
     private final ServerHandler handler;
 
-    private int[] channelCounts = new int[256];
+    private final int[] channelCounts = new int[256];
 
-    public RakNetInterface(Server server) {
+    public RakNetInterface(final Server server) {
         this.server = server;
 
         this.raknet = new RakNetServer(this.server.getLogger(), this.server.getPort(), this.server.getIp().equals("") ? "0.0.0.0" : this.server.getIp());
@@ -56,7 +57,7 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
     }
 
     @Override
-    public void setNetwork(Network network) {
+    public void setNetwork(final Network network) {
         this.network = network;
     }
 
@@ -74,9 +75,9 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
     }
 
     @Override
-    public void closeSession(String identifier, String reason) {
+    public void closeSession(final String identifier, final String reason) {
         if (this.players.containsKey(identifier)) {
-            Player player = this.players.get(identifier);
+            final Player player = this.players.get(identifier);
             this.identifiers.remove(player.rawHashCode());
             this.players.remove(identifier);
             this.networkLatency.remove(identifier);
@@ -86,30 +87,27 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
     }
 
     @Override
-    public int getNetworkLatency(Player player) {
+    public int getNetworkLatency(final Player player) {
         return this.networkLatency.get(this.identifiers.get(player.rawHashCode()));
     }
 
     @Override
-    public void close(Player player) {
+    public void close(final Player player) {
         this.close(player, "unknown reason");
     }
 
     @Override
-    public void close(Player player, String reason) {
+    public void close(final Player player, final String reason) {
         if (this.identifiers.containsKey(player.rawHashCode())) {
-            String id = this.identifiers.get(player.rawHashCode());
-            this.players.remove(id);
-            this.networkLatency.remove(id);
-            this.identifiersACK.remove(id);
+            final String id = this.identifiers.get(player.rawHashCode());
             this.closeSession(id, reason);
-            this.identifiers.remove(player.rawHashCode());
         }
     }
 
     @Override
-    public void shutdown() {
+    public long shutdown() {
         this.handler.shutdown();
+        return 500;
     }
 
     @Override
@@ -118,14 +116,14 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
     }
 
     @Override
-    public void openSession(String identifier, String address, int port, long clientID) {
-        PlayerCreationEvent ev = new PlayerCreationEvent(this, Player.class, Player.class, null, address, port);
+    public void openSession(final String identifier, final String address, final int port, final long clientID) {
+        final PlayerCreationEvent ev = new PlayerCreationEvent(this, Player.class, Player.class, null, address, port);
         this.server.getPluginManager().callEvent(ev);
-        Class<? extends Player> clazz = ev.getPlayerClass();
+        final Class<? extends Player> clazz = ev.getPlayerClass();
 
         try {
-            Constructor constructor = clazz.getConstructor(SourceInterface.class, Long.class, String.class, int.class);
-            Player player = (Player) constructor.newInstance(this, ev.getClientId(), ev.getAddress(), ev.getPort());
+            final Constructor constructor = clazz.getConstructor(SourceInterface.class, Long.class, String.class, int.class);
+            final Player player = (Player) constructor.newInstance(this, ev.getClientId(), ev.getAddress(), ev.getPort());
             this.players.put(identifier, player);
             this.networkLatency.put(identifier, 0);
             this.identifiersACK.put(identifier, 0);
@@ -137,13 +135,13 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
     }
 
     @Override
-    public void handleEncapsulated(String identifier, EncapsulatedPacket packet, int flags) {
+    public void handleEncapsulated(final String identifier, final EncapsulatedPacket packet, final int flags) {
         if (this.players.containsKey(identifier)) {
             DataPacket pk = null;
             try {
                 if (packet.buffer.length > 0) {
                     if (packet.buffer[0] == PING_DataPacket.ID) {
-                        PING_DataPacket pingPacket = new PING_DataPacket();
+                        final PING_DataPacket pingPacket = new PING_DataPacket();
                         pingPacket.buffer = packet.buffer;
                         pingPacket.decode();
 
@@ -157,10 +155,10 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
                         this.players.get(identifier).handleDataPacket(pk);
                     }
                 }
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 this.server.getLogger().logException(e);
                 if (Nukkit.DEBUG > 1 && pk != null) {
-                    MainLogger logger = this.server.getLogger();
+                    final MainLogger logger = this.server.getLogger();
 //                    if (logger != null) {
                     logger.debug("Packet " + pk.getClass().getName() + " 0x" + Binary.bytesToHexString(packet.buffer));
                     //logger.logException(e);
@@ -175,42 +173,42 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
     }
 
     @Override
-    public void blockAddress(String address) {
+    public void blockAddress(final String address) {
         this.blockAddress(address, 300);
     }
 
     @Override
-    public void blockAddress(String address, int timeout) {
+    public void blockAddress(final String address, final int timeout) {
         this.handler.blockAddress(address, timeout);
     }
 
     @Override
-    public void unblockAddress(String address) {
+    public void unblockAddress(final String address) {
         this.handler.unblockAddress(address);
     }
 
     @Override
-    public void handleRaw(String address, int port, byte[] payload) {
+    public void handleRaw(final String address, final int port, final byte[] payload) {
         this.server.handlePacket(address, port, payload);
     }
 
     @Override
-    public void sendRawPacket(String address, int port, byte[] payload) {
+    public void sendRawPacket(final String address, final int port, final byte[] payload) {
         this.handler.sendRaw(address, port, payload);
     }
 
     @Override
-    public void notifyACK(String identifier, int identifierACK) {
+    public void notifyACK(final String identifier, final int identifierACK) {
         // TODO: Better ACK notification implementation!
-        for (Player p : server.getOnlinePlayers().values()) {
+        for (final Player p : server.getOnlinePlayers().values()) {
             p.notifyACK(identifierACK);
         }
     }
 
     @Override
-    public void setName(String name) {
-        QueryRegenerateEvent info = this.server.getQueryInformation();
-        String[] names = name.split("!@#");  //Split double names within the program
+    public void setName(final String name) {
+        final QueryRegenerateEvent info = this.server.getQueryInformation();
+        final String[] names = name.split("!@#");  //Split double names within the program
         this.handler.sendOption("name",
                 "MCPE;" + Utils.rtrim(names[0].replace(";", "\\;"), '\\') + ";" +
                         ProtocolInfo.CURRENT_PROTOCOL + ";" +
@@ -222,30 +220,30 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
                         Server.getGamemodeString(this.server.getDefaultGamemode(), true) + ";");
     }
 
-    public void setPortCheck(boolean value) {
+    public void setPortCheck(final boolean value) {
         this.handler.sendOption("portChecking", String.valueOf(value));
     }
 
     @Override
-    public void handleOption(String name, String value) {
+    public void handleOption(final String name, final String value) {
         if ("bandwidth".equals(name)) {
-            String[] v = value.split(";");
+            final String[] v = value.split(";");
             this.network.addStatistics(Double.valueOf(v[0]), Double.valueOf(v[1]));
         }
     }
 
     @Override
-    public Integer putPacket(Player player, DataPacket packet) {
+    public Integer putPacket(final Player player, final DataPacket packet) {
         return this.putPacket(player, packet, false);
     }
 
     @Override
-    public Integer putPacket(Player player, DataPacket packet, boolean needACK) {
+    public Integer putPacket(final Player player, final DataPacket packet, final boolean needACK) {
         return this.putPacket(player, packet, needACK, false);
     }
 
     @Override
-    public Integer putPacket(Player player, DataPacket packet, boolean needACK, boolean immediate) {
+    public Integer putPacket(final Player player, final DataPacket packet, final boolean needACK, final boolean immediate) {
         if (this.identifiers.containsKey(player.rawHashCode())) {
             byte[] buffer;
             if (packet.pid() == ProtocolInfo.BATCH_PACKET) {
@@ -263,11 +261,11 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
                     buffer = Zlib.deflate(
                             Binary.appendBytes(Binary.writeUnsignedVarInt(buffer.length), buffer),
                             Server.getInstance().networkCompressionLevel);
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     throw new RuntimeException(e);
                 }
             }
-            String identifier = this.identifiers.get(player.rawHashCode());
+            final String identifier = this.identifiers.get(player.rawHashCode());
             EncapsulatedPacket pk = null;
             if (!needACK) {
                 if (packet.encapsulatedPacket == null) {
@@ -312,13 +310,13 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
         return null;
     }
 
-    private DataPacket getPacket(byte[] buffer) {
+    private DataPacket getPacket(final byte[] buffer) {
         int start = 0;
 
         if (buffer[0] == (byte) 0xfe) {
             start++;
         }
-        DataPacket data = this.network.getPacket(ProtocolInfo.BATCH_PACKET);
+        final DataPacket data = this.network.getPacket(ProtocolInfo.BATCH_PACKET);
 
         if (data == null) {
             return null;
@@ -328,4 +326,9 @@ public class RakNetInterface implements ServerInstance, AdvancedSourceInterface 
 
         return data;
     }
+
+	@Override
+	public void run() {
+		raknet.run();
+	}
 }

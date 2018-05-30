@@ -29,17 +29,19 @@ public class OfflinePlayer implements IPlayer {
      *               The server this player is in, as a {@code Server} object.
      * @param name   这个玩家所的名字。<br>
      *               Name of this player.
+     * @param playerData 
      * @since Nukkit 1.0 | Nukkit API 1.0.0
      */
-    public OfflinePlayer(Server server, String name) {
+    public OfflinePlayer(Server server, String name, CompoundTag playerData) {
         this.server = server;
         this.name = name;
-
-        if (new File(this.server.getDataPath() + "players/" + name.toLowerCase() + ".dat").exists()) {
-            this.namedTag = this.server.getOfflinePlayerData(this.name);
-        } else {
-            this.namedTag = null;
-        }
+        this.namedTag = playerData;
+//        
+//        if (new File(this.server.getDataPath() + "players/" + name.toLowerCase() + ".dat").exists()) {
+//            this.namedTag = this.server.getOfflinePlayerData(this.name);
+//        } else {
+//            this.namedTag = null;
+//        }
     }
 
     @Override
