@@ -5,7 +5,7 @@ package cn.nukkit.entity;
  * 
  */
 public interface Rotatable extends Positioned {
-	void setRotation(double pitch, double yaw);
+	void setRotation(double yaw, double pitch);
 
 	double getPitch();
 	
